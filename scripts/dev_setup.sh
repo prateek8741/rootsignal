@@ -19,4 +19,9 @@ done
 
 uv sync
 (cd server && uv run alembic upgrade head)
+if command -v npm >/dev/null; then
+  (cd dashboard && npm ci --no-audit --no-fund)
+else
+  echo "npm not found: skipping dashboard dependencies (Node 24 required for the dashboard)"
+fi
 echo "setup complete"

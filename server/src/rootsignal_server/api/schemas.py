@@ -33,6 +33,17 @@ class TraceSummary(BaseModel):
     unpriced_llm_call_count: int
     completed_at: datetime | None
     completion_reason: str | None
+    finding_count: int
+
+
+class Context(BaseModel):
+    org_slug: str
+    org_name: str
+    project_slug: str
+    project_name: str
+    environment: str
+    scopes: list[str]
+    key_prefix: str
 
 
 class TraceList(BaseModel):

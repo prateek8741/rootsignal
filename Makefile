@@ -1,4 +1,4 @@
-.PHONY: setup migrate test test-sdk test-server lint typecheck check bench serve worker measure-ingest eval-detectors
+.PHONY: setup migrate test test-sdk test-server test-dashboard lint typecheck check bench serve worker dashboard seed-demo measure-ingest eval-detectors
 
 setup:
 	./scripts/dev_setup.sh
@@ -20,7 +20,10 @@ lint:
 typecheck:
 	uv run mypy sdk/python/src server/src evaluation scripts
 
-check: lint typecheck test
+test-dashboard:
+	cd dashboard && npx tsc --noEmit && npx vitest run
+
+check: lint typecheck test test-dashboard
 
 bench:
 	uv run python scripts/bench_sdk_overhead.py --payload-bytes 2000 --calls 5000
@@ -31,6 +34,12 @@ serve:
 
 worker:
 	uv run rootsignal-server worker
+
+dashboard:
+	cd dashboard && npm run dev
+
+seed-demo:
+	uv run python scripts/seed_demo.py
 
 eval-detectors:
 	uv run python evaluation/run_detector_eval.py --json evaluation/reports/detectors_v0.json

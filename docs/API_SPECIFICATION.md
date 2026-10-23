@@ -63,11 +63,15 @@ export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer rs_..."
 
 ## 4. Read API (scope `read`)
 
+### `GET /v1/context` (any valid key)
+
+`{org_slug, org_name, project_slug, project_name, environment, scopes, key_prefix}`: what the key belongs to and may do. Used by the dashboard's connect screen.
+
 ### `GET /v1/traces`
 
-Newest first. Query parameters: `limit` (1–200, default 50), `cursor` (opaque, from the previous page), `status` (`unset|ok|error`), `agent_name`, `since`, `until` (ISO-8601). Response: `{"items": [TraceSummary], "next_cursor": string|null}`. Keyset pagination on `(started_at, trace_id)` stays stable while new traces arrive.
+Newest first. Query parameters: `limit` (1–200, default 50), `cursor` (opaque, from the previous page), `status` (`unset|ok|error`), `agent_name`, `agent_version`, `since`, `until` (ISO-8601). Response: `{"items": [TraceSummary], "next_cursor": string|null}`. Keyset pagination on `(started_at, trace_id)` stays stable while new traces arrive.
 
-`TraceSummary` fields: `trace_id`, `root_span_id`, `service_name`, `agent_name`, `agent_version`, `prompt_version`, `conversation_id`, `status`, `source`, `started_at`, `ended_at`, `duration_ms`, `span_count`, `error_count`, `llm_call_count`, `tool_call_count`, `input_tokens`, `output_tokens`, `cost_usd` (decimal string, null if no call was priced), `unpriced_llm_call_count` (if > 0, `cost_usd` is a lower bound), `completed_at`, `completion_reason` (`root_span` | `idle_timeout`). All timestamps are UTC.
+`TraceSummary` fields: `trace_id`, `root_span_id`, `service_name`, `agent_name`, `agent_version`, `prompt_version`, `conversation_id`, `status`, `source`, `started_at`, `ended_at`, `duration_ms`, `span_count`, `error_count`, `llm_call_count`, `tool_call_count`, `input_tokens`, `output_tokens`, `cost_usd` (decimal string, null if no call was priced), `unpriced_llm_call_count` (if > 0, `cost_usd` is a lower bound), `completed_at`, `completion_reason` (`root_span` | `idle_timeout`), `finding_count`. All timestamps are UTC.
 
 ### `GET /v1/traces/{trace_id}`
 
