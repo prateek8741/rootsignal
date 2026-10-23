@@ -2,7 +2,7 @@
 
 An AI agent reliability platform: **observe → detect → investigate → reproduce → fix → verify**. Working name; not trademark-checked.
 
-> **Status: Phase 1, increment 3 of 10.** SDK → authenticated OTLP ingest → background worker → 8 deterministic failure detectors, with findings in the read API. No issue grouping, dashboard or AI investigation yet. See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
+> **Status: Phase 1, increment 4 of 10.** SDK → authenticated OTLP ingest → worker → 8 deterministic detectors → issues with lifecycle and regression detection, all through the API. No dashboard or AI investigation yet. See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
 
 ## Layout
 
@@ -68,6 +68,6 @@ Details: [docs/TRACE_SCHEMA.md](docs/TRACE_SCHEMA.md).
 
 ## Documents
 
-[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Detectors](docs/DETECTORS.md) · [Cost model](docs/COST_MODEL.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
+[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Detectors](docs/DETECTORS.md) · [Issues](docs/ISSUES.md) · [Cost model](docs/COST_MODEL.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
 
 License: not yet chosen.

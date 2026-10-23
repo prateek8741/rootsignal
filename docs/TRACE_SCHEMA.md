@@ -173,6 +173,10 @@ One row per detector hit on a trace, unique on `(project_id, trace_id, detector,
 
 Tool spans without `rootsignal.tool.args_hash` (non-Rootsignal SDKs) get one derived at ingest from the arguments payload, flagged by `rootsignal.server.args_hash_derived = true`.
 
+### 5.8 Issues (migration `0004`)
+
+`issues`, unique on `(project_id, environment_id, fingerprint)`: components, title, description, severity, status (`open|resolved|ignored`), regression fields, aggregates, representative trace IDs, resolution fields. `issue_occurrences` has one row per finding (unique `finding_id`, cascades with the finding): `issue_id`, `trace_id`, `agent_version`, `severity`, `weight`, `occurred_at`. `issue_events` holds the history. `projects.issue_grouping` holds per-detector fingerprint overrides. API keys gain the `triage` scope. Composite FKs keep occurrences, findings and issues in one tenant. See [ISSUES.md](ISSUES.md).
+
 ### 5.6 `usage_daily` and `audit_events` (migration `0002`)
 
 `usage_daily`, keyed by `(project_id, day)` in UTC: `requests`, `spans_received`, `spans_accepted`, `bytes_received` (wire bytes) and `rejected_requests`. Quota checks lock and update this row inside the ingest transaction. `audit_events` is append-only: `actor`, `action` (`tenant.ensure`, `api_key.create`, `api_key.revoke`), `target`, `details`.

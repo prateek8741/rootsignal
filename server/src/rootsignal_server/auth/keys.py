@@ -30,6 +30,11 @@ class TenantContext:
     environment_id: uuid.UUID
     key_id: uuid.UUID
     scopes: frozenset[str]
+    key_prefix: str = ""  # display prefix, for audit actors; never the secret
+
+    @property
+    def actor(self) -> str:
+        return f"api_key:{self.key_prefix}" if self.key_prefix else "api_key"
 
     def allows(self, scope: str) -> bool:
         return scope in self.scopes
@@ -64,7 +69,7 @@ def parse_bearer(header: str | None) -> str | None:
 def authenticate(conn: Connection, plaintext: str) -> TenantContext | None:
     """Resolve a key to its tenant, or ``None`` if unknown or revoked."""
     row = conn.execute(
-        text("SELECT id, org_id, project_id, environment_id, scopes, last_used_at "
+        text("SELECT id, org_id, project_id, environment_id, scopes, last_used_at, prefix "
              "FROM api_keys WHERE key_hash = :h AND revoked_at IS NULL"),
         {"h": hash_key(plaintext)},
     ).one_or_none()
@@ -76,4 +81,4 @@ def authenticate(conn: Connection, plaintext: str) -> TenantContext | None:
         conn.execute(text("UPDATE api_keys SET last_used_at = :now WHERE id = :id"),
                      {"now": now, "id": row.id})
     return TenantContext(row.org_id, row.project_id, row.environment_id, row.id,
-                         frozenset(row.scopes))
+                         frozenset(row.scopes), row.prefix)

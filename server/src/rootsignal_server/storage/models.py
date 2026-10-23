@@ -54,7 +54,9 @@ JOB_STATUSES = ("queued", "running", "done", "failed", "dead")
 REDACT_ON_INGEST = ("always", "if_not_sdk", "never")
 COMPLETION_REASONS = ("root_span", "idle_timeout")
 SEVERITIES = ("critical", "high", "medium", "low")
-API_KEY_SCOPES = ("ingest", "read", "admin")
+ISSUE_STATUSES = ("open", "resolved", "ignored")
+ISSUE_EVENT_KINDS = ("created", "status_changed", "regressed", "straggler")
+API_KEY_SCOPES = ("ingest", "read", "triage", "admin")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -133,6 +135,9 @@ class Project(Base):
         Text, nullable=False, server_default="if_not_sdk")
     # Per-detector overrides of the defaults in detection/config.py.
     detector_config: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    # Per-detector fingerprint components overriding issues/fingerprint.py.
+    issue_grouping: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     created_at: Mapped[datetime] = _created_at()
 
@@ -335,6 +340,7 @@ class Finding(Base):
     __tablename__ = "findings"
     __table_args__ = (
         UniqueConstraint("project_id", "trace_id", "detector", "finding_key"),
+        UniqueConstraint("project_id", "id"),  # target of tenant composite FKs
         ForeignKeyConstraint(["project_id", "trace_id"],
                              ["traces.project_id", "traces.trace_id"], ondelete="CASCADE"),
         CheckConstraint(_in("severity", SEVERITIES), name="severity"),
@@ -364,6 +370,117 @@ class Finding(Base):
     error_type: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _created_at()
+
+
+# --------------------------------------------------------------------------
+# Issues
+# --------------------------------------------------------------------------
+
+class Issue(Base):
+    """A group of findings sharing a fingerprint, within one environment.
+
+    Aggregates (counts, first/last seen, versions, representative traces) are
+    recomputed from ``issue_occurrences`` rather than incremented.
+    """
+
+    __tablename__ = "issues"
+    __table_args__ = (
+        UniqueConstraint("project_id", "environment_id", "fingerprint"),
+        UniqueConstraint("project_id", "id"),  # target of tenant composite FKs
+        CheckConstraint(_in("status", ISSUE_STATUSES), name="status"),
+        CheckConstraint(_in("severity", SEVERITIES), name="severity"),
+        CheckConstraint("occurrence_count >= 0 AND regression_count >= 0", name="counts"),
+        Index("ix_issues_project_env_status_last_seen", "project_id", "environment_id",
+              "status", text("last_seen_at DESC")),
+        *_tenant_fks(environment=True),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    org_id: Mapped[uuid.UUID] = _org_id()
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    environment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
+    components: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    detector: Mapped[str] = mapped_column(Text, nullable=False)
+    agent_name: Mapped[str | None] = mapped_column(Text)
+    tool_name: Mapped[str | None] = mapped_column(Text)
+    error_type: Mapped[str | None] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="open")
+    is_regression: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false"))
+    regression_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    last_regressed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    occurrence_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    affected_versions: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("ARRAY[]::text[]"))
+    first_trace_id: Mapped[str | None] = mapped_column(Text)
+    latest_trace_id: Mapped[str | None] = mapped_column(Text)
+    worst_trace_id: Mapped[str | None] = mapped_column(Text)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fixed_in_version: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _created_at()
+
+
+class IssueOccurrence(Base):
+    """Links one finding (and so one trace) to its issue. One row per finding."""
+
+    __tablename__ = "issue_occurrences"
+    __table_args__ = (
+        UniqueConstraint("finding_id"),
+        ForeignKeyConstraint(["project_id", "issue_id"], ["issues.project_id", "issues.id"],
+                             ondelete="CASCADE"),
+        ForeignKeyConstraint(["project_id", "finding_id"],
+                             ["findings.project_id", "findings.id"], ondelete="CASCADE"),
+        Index("ix_issue_occurrences_issue_occurred", "issue_id", text("occurred_at DESC")),
+        Index("ix_issue_occurrences_project_trace", "project_id", "trace_id"),
+        CheckConstraint(_in("severity", SEVERITIES), name="severity"),
+        *_tenant_fks(environment=True),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    org_id: Mapped[uuid.UUID] = _org_id()
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    environment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    issue_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    finding_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    trace_id: Mapped[str] = mapped_column(Text, nullable=False)
+    agent_version: Mapped[str | None] = mapped_column(Text)
+    severity: Mapped[str] = mapped_column(Text, nullable=False)
+    # How bad this occurrence is relative to others (evidence size); picks the "worst" trace.
+    weight: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class IssueEvent(Base):
+    """Issue history: creation, status changes (who/why), regressions."""
+
+    __tablename__ = "issue_events"
+    __table_args__ = (
+        ForeignKeyConstraint(["project_id", "issue_id"], ["issues.project_id", "issues.id"],
+                             ondelete="CASCADE"),
+        CheckConstraint(_in("kind", ISSUE_EVENT_KINDS), name="kind"),
+        Index("ix_issue_events_issue_created", "issue_id", "created_at"),
+        *_tenant_fks(environment=False),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    org_id: Mapped[uuid.UUID] = _org_id()
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    issue_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    actor: Mapped[str] = mapped_column(Text, nullable=False)
+    from_status: Mapped[str | None] = mapped_column(Text)
+    to_status: Mapped[str | None] = mapped_column(Text)
+    details: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    created_at: Mapped[datetime] = _created_at()
 
 
 # --------------------------------------------------------------------------
