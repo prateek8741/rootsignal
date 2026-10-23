@@ -60,6 +60,8 @@ SESSION_SCOPES = ("read", "triage")
 INVESTIGATION_STATUSES = ("queued", "running", "completed", "failed")
 CLAIM_KINDS = ("observed", "hypothesis", "alternative", "missing_evidence", "next_step", "verified")
 CLAIM_SOURCES = ("rules", "llm", "replay")
+# draft: created, not yet replayed. The others are set by replay (increment 8).
+CASE_STATUSES = ("draft", "reproduced", "not_reproduced", "passing", "failing", "archived")
 API_KEY_SCOPES = ("ingest", "read", "triage", "admin")
 
 
@@ -614,6 +616,60 @@ class InvestigationClaim(Base):
     statement: Mapped[str] = mapped_column(Text, nullable=False)
     refs: Mapped[list[Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+
+
+# --------------------------------------------------------------------------
+# Regression cases
+# --------------------------------------------------------------------------
+
+class RegressionCase(Base):
+    """A failing production run captured as a repeatable test. Content lives in
+    immutable ``regression_case_versions``; this row tracks identity and status."""
+
+    __tablename__ = "regression_cases"
+    __table_args__ = (
+        UniqueConstraint("project_id", "id"),  # target of tenant composite FKs
+        ForeignKeyConstraint(["project_id", "issue_id"], ["issues.project_id", "issues.id"],
+                             ondelete="CASCADE"),
+        CheckConstraint(_in("status", CASE_STATUSES), name="status"),
+        CheckConstraint("current_version >= 1", name="version"),
+        Index("ix_regression_cases_issue", "issue_id"),
+        *_tenant_fks(environment=True),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    org_id: Mapped[uuid.UUID] = _org_id()
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    environment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    issue_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    # Not a foreign key: the case must outlive the trace (retention).
+    source_trace_id: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="draft")
+    current_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _created_at()
+
+
+class RegressionCaseVersion(Base):
+    """Immutable snapshot of a case's spec (input, fixtures, assertions, entrypoint)."""
+
+    __tablename__ = "regression_case_versions"
+    __table_args__ = (
+        ForeignKeyConstraint(["project_id", "case_id"],
+                             ["regression_cases.project_id", "regression_cases.id"],
+                             ondelete="CASCADE"),
+        CheckConstraint("version >= 1", name="version"),
+    )
+
+    case_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    spec: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    change_note: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
 
 
 # --------------------------------------------------------------------------

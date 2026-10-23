@@ -310,3 +310,23 @@ def test_tool_call_context_manager(collect: Collect) -> None:
     span = one(collect(), "execute_tool mcp_search")
     assert span.attributes[A.RS_MCP_SERVER] == "docs-mcp"
     assert json.loads(span.attributes[A.GEN_AI_TOOL_CALL_RESULT]) == ["a"]
+
+
+@rs.agent_run("module-level-agent")
+def module_level_agent(question: str) -> str:
+    return question.upper()
+
+
+def test_decorated_runs_record_an_importable_entrypoint(collect: Collect) -> None:
+    module_level_agent("hi")
+
+    @rs.agent_run("nested")
+    def nested() -> None:
+        pass
+
+    nested()
+    spans = collect()
+    root = one(spans, "invoke_agent module-level-agent")
+    assert root.attributes[A.RS_RUN_ENTRYPOINT] == f"{__name__}:module_level_agent"
+    # A function defined inside another can't be imported by replay: not recorded.
+    assert A.RS_RUN_ENTRYPOINT not in one(spans, "invoke_agent nested").attributes

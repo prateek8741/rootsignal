@@ -19,6 +19,44 @@ export type Investigation = Schemas["InvestigationDetail"];
 export type InvestigationSummary = Schemas["InvestigationSummary"];
 export type InvestigationList = Schemas["InvestigationList"];
 export type Claim = Schemas["ClaimOut"];
+export type CaseSummary = Schemas["CaseSummary"];
+export type CaseDetail = Schemas["CaseDetail"];
+export type CaseList = Schemas["CaseList"];
+
+/** The regression case spec (see server/src/rootsignal_server/regression/spec.py). */
+export interface CaseAssertion {
+  id: string;
+  kind: string;
+  params: Record<string, unknown>;
+  description: string;
+  role: "reproduces" | "guard";
+  requires: "recorded" | "live_tools" | "live_model" | "live";
+  enabled: boolean;
+}
+export interface RecordedValue { captured: boolean; value?: unknown; truncated?: boolean; redacted?: boolean }
+export interface CaseSpec {
+  name: string;
+  entrypoint: string | null;
+  source: { trace_id: string; agent_name: string | null; agent_version: string | null; started_at: string };
+  input: { kind: "kwargs" | "value" | "missing"; value?: unknown; supplied_by_user?: boolean; redacted?: boolean; truncated?: boolean };
+  fixtures: {
+    tools: { call_index: number; tool: string; side_effect: string; repeat_index: number | null;
+      arguments: RecordedValue; outcome: "result" | "error"; result?: RecordedValue | null;
+      error_type?: string | null; error_message?: string | null }[];
+    llm: { call_index: number; model: string | null; output: RecordedValue; failed?: boolean }[];
+    retrievals: unknown[];
+  };
+  assertions: CaseAssertion[];
+  quality: { replayable_recorded: boolean; warnings: string[]; dropped_assertions: { description: string; reason: string }[] };
+}
+
+export interface CaseEdit {
+  name?: string;
+  entrypoint?: string | null;
+  input?: unknown;
+  disabled_assertions?: string[];
+  note?: string;
+}
 
 /** An error response from the API (or the network). */
 export class ApiError extends Error {
@@ -121,4 +159,12 @@ export const api = {
   investigations: (issueId: string) =>
     request<InvestigationList>(`/v1/issues/${issueId}/investigations`),
   investigation: (id: string) => request<Investigation>(`/v1/investigations/${id}`),
+  issueCases: (issueId: string) => request<CaseList>(`/v1/issues/${issueId}/regression-cases`),
+  createCase: (issueId: string) => request<CaseDetail>(`/v1/issues/${issueId}/regression-cases`, json({})),
+  regressionCase: (id: string, version?: number) =>
+    request<CaseDetail>(withQuery(`/v1/regression-cases/${id}`, { version })),
+  caseSpecDocument: (id: string, version: number) =>
+    request<Record<string, unknown>>(withQuery(`/v1/regression-cases/${id}/spec`, { version })),
+  editCase: (id: string, change: CaseEdit) =>
+    request<CaseDetail>(`/v1/regression-cases/${id}`, { ...json(change), method: "PATCH" }),
 };

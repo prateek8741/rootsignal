@@ -143,6 +143,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/issues/{issue_id}/regression-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Regression cases of an issue */
+        get: operations["list_for_issue_v1_issues__issue_id__regression_cases_get"];
+        put?: never;
+        /** Create a regression case from an occurrence */
+        post: operations["create_v1_issues__issue_id__regression_cases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/issues/{issue_id}/status": {
         parameters: {
             query?: never;
@@ -169,6 +187,58 @@ export interface paths {
         };
         /** Payload body */
         get: operations["get_payload_v1_payloads__sha256__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/regression-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All regression cases */
+        get: operations["list_all_v1_regression_cases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/regression-cases/{case_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A case with its current (or a given) version */
+        get: operations["get_one_v1_regression_cases__case_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit a case (creates a new version) */
+        patch: operations["edit_v1_regression_cases__case_id__patch"];
+        trace?: never;
+    };
+    "/v1/regression-cases/{case_id}/spec": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The case spec as a standalone document */
+        get: operations["spec_v1_regression_cases__case_id__spec_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -216,6 +286,137 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** CaseCreate */
+        CaseCreate: {
+            /** Input */
+            input?: unknown;
+            /** Name */
+            name?: string | null;
+            /** Trace Id */
+            trace_id?: string | null;
+        };
+        /** CaseDetail */
+        CaseDetail: {
+            /** Assertion Count */
+            assertion_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Current Version */
+            current_version: number;
+            /** Entrypoint */
+            entrypoint: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Issue Id
+             * Format: uuid
+             */
+            issue_id: string;
+            /** Name */
+            name: string;
+            /** Replayable Recorded */
+            replayable_recorded: boolean;
+            /** Source Trace Id */
+            source_trace_id: string;
+            /** Spec */
+            spec: {
+                [key: string]: unknown;
+            };
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Versions */
+            versions: components["schemas"]["CaseVersionOut"][];
+            /** Warning Count */
+            warning_count: number;
+        };
+        /** CaseEditBody */
+        CaseEditBody: {
+            /** Disabled Assertions */
+            disabled_assertions?: string[] | null;
+            /** Entrypoint */
+            entrypoint?: string | null;
+            /** Input */
+            input?: unknown;
+            /** Name */
+            name?: string | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** CaseList */
+        CaseList: {
+            /** Items */
+            items: components["schemas"]["CaseSummary"][];
+        };
+        /** CaseSummary */
+        CaseSummary: {
+            /** Assertion Count */
+            assertion_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Current Version */
+            current_version: number;
+            /** Entrypoint */
+            entrypoint: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Issue Id
+             * Format: uuid
+             */
+            issue_id: string;
+            /** Name */
+            name: string;
+            /** Replayable Recorded */
+            replayable_recorded: boolean;
+            /** Source Trace Id */
+            source_trace_id: string;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Warning Count */
+            warning_count: number;
+        };
+        /** CaseVersionOut */
+        CaseVersionOut: {
+            /** Change Note */
+            change_note: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Version */
+            version: number;
+        };
         /** ClaimOut */
         ClaimOut: {
             /** Kind */
@@ -1081,6 +1282,72 @@ export interface operations {
             };
         };
     };
+    list_for_issue_v1_issues__issue_id__regression_cases_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_v1_issues__issue_id__regression_cases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaseCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     set_status_v1_issues__issue_id__status_post: {
         parameters: {
             query?: never;
@@ -1134,6 +1401,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PayloadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_all_v1_regression_cases_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_one_v1_regression_cases__case_id__get: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_v1_regression_cases__case_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaseEditBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spec_v1_regression_cases__case_id__spec_get: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

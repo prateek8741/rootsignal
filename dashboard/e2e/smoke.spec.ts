@@ -50,6 +50,15 @@ test("sign in with a link, inspect a failing trace, investigate its issue", asyn
   await expect(page.getByText(String(spanId), { exact: true })).toBeVisible(); // details panel
   await page.screenshot({ path: "test-results/04-evidence-span.png", fullPage: true });
 
+  // Turn the failure into a regression case.
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
+  await page.getByRole("button", { name: "Create from worst trace" }).click();
+  await expect(page.getByRole("heading", { name: /Assertions \(\d+ enabled\)/ })).toBeVisible();
+  await expect(page.getByText("reproduces").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download JSON" })).toBeVisible();
+  await page.screenshot({ path: "test-results/05-regression-case.png", fullPage: true });
+
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: "Sign in to Rootsignal" })).toBeVisible();
   await page.goto("/traces");

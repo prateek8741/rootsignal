@@ -195,6 +195,7 @@ describe("issues", () => {
       if (custom) return custom;
       if (url.pathname.endsWith("/occurrences")) return { body: { items: [], next_cursor: null } };
       if (url.pathname.endsWith("/investigations") && !init?.method) return { body: { items: [] } };
+      if (url.pathname.endsWith("/regression-cases") && !init?.method) return { body: { items: [] } };
       if (url.pathname.startsWith("/v1/issues/")) return { body: { issue: issueSummary(), versions: [], events: [], recent_occurrences: [] } };
       return undefined;
     };

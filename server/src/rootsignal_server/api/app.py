@@ -15,6 +15,7 @@ from rootsignal_server.api import (
     routes_ingest,
     routes_investigations,
     routes_issues,
+    routes_regression,
     routes_traces,
 )
 from rootsignal_server.api.deps import AppState, app_state
@@ -46,6 +47,7 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
     app.include_router(routes_issues.router)
     app.include_router(routes_auth.router)
     app.include_router(routes_investigations.router)
+    app.include_router(routes_regression.router)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:

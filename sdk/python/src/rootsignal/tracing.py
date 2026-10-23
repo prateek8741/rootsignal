@@ -212,7 +212,7 @@ class AgentRun(_Scope):
     def __init__(self, name: str, *, agent_version: str | None = None,
                  prompt_version: str | None = None, conversation_id: str | None = None,
                  user_id: str | None = None, input: Any = _MISSING,
-                 max_steps: int | None = None) -> None:
+                 max_steps: int | None = None, entrypoint: str | None = None) -> None:
         super().__init__(f"{A.OP_INVOKE_AGENT} {name}", {
             A.RS_SPAN_KIND: A.KIND_AGENT,
             A.GEN_AI_OPERATION_NAME: A.OP_INVOKE_AGENT,
@@ -222,6 +222,7 @@ class AgentRun(_Scope):
             A.GEN_AI_CONVERSATION_ID: conversation_id,
             A.RS_USER_ID: user_id,
             A.RS_RUN_MAX_STEPS: max_steps,
+            A.RS_RUN_ENTRYPOINT: entrypoint,
         })
         self._params = dict(name=name, agent_version=agent_version,
                             prompt_version=prompt_version, conversation_id=conversation_id,
@@ -246,9 +247,14 @@ class AgentRun(_Scope):
         """Use as a decorator: each call gets its own run; bound arguments are the input."""
         signature = _signature_for(func)
         params = self._params
+        # Nested functions and lambdas can't be imported by replay; record only real paths.
+        qualname = getattr(func, "__qualname__", "")
+        entrypoint = (f"{func.__module__}:{qualname}"
+                      if qualname and "<" not in qualname else None)
 
         def make(args: tuple[Any, ...], kwargs: dict[str, Any]) -> AgentRun:
-            return AgentRun(**params, input=_bind_arguments(signature, args, kwargs))  # type: ignore[arg-type]
+            return AgentRun(**params, input=_bind_arguments(signature, args, kwargs),  # type: ignore[arg-type]
+                            entrypoint=entrypoint)
 
         return _wrap(func, make, capture_result=lambda scope, result: scope.set_output(result))
 
