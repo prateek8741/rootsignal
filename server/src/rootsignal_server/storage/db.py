@@ -15,6 +15,8 @@ def make_engine(settings: Settings | None = None) -> Engine:
         pool_size=settings.database_pool_size,
         pool_pre_ping=True,
         echo=settings.database_echo,
+        # API timestamps are UTC regardless of the database server's locale.
+        connect_args={"options": "-c timezone=UTC"},
     )
 
 

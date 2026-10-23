@@ -22,6 +22,8 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.8",
     "mypy>=1.13",
+    "httpx>=0.28.1",
+    "types-protobuf>=7.35.1.20260906",
 ]
 
 [tool.ruff]
@@ -39,4 +41,4 @@ python_version = "3.12"
 "server/migrations/versions/*" = ["E501", "I001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["rootsignal", "rootsignal_server", "conftest"]
+known-first-party = ["rootsignal", "rootsignal_server", "conftest", "otlp_factory"]
