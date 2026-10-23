@@ -1,0 +1,42 @@
+[project]
+name = "rootsignal-workspace"
+version = "0.0.0"
+requires-python = ">=3.12"
+description = "Rootsignal monorepo workspace root (not published)"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["sdk/python", "server"]
+
+[tool.uv.sources]
+rootsignal = { workspace = true, editable = true }
+rootsignal-server = { workspace = true, editable = true }
+
+[dependency-groups]
+dev = [
+    "rootsignal",
+    "rootsignal-server",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+
+[tool.ruff.lint.per-file-ignores]
+"server/migrations/versions/*" = ["E501", "I001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["rootsignal", "rootsignal_server", "conftest"]

@@ -1,0 +1,171 @@
+# Trace Schema
+
+Status: v0, implemented in increment 1 (SDK + database). Ingest normalisation (OTLP → these tables) is increment 2, so §5 is a specification that has no tests yet.
+
+Sources of truth: `sdk/python/src/rootsignal/_attributes.py` (wire attributes) and `server/src/rootsignal_server/storage/models.py` (tables, migration `0001`).
+
+## 1. Principles
+
+1. **Standard first.** Spans are OpenTelemetry spans. Wherever the OTel GenAI semantic conventions define an attribute, we use it (keys as shipped in `opentelemetry-semantic-conventions` 0.66b1). `rootsignal.*` attributes carry only what the conventions don't define.
+2. **Framework-neutral storage.** Tables hold canonical columns. Dialect-specific attributes stay in the bounded `spans.attributes` JSONB and are never relied on by detectors.
+3. **Tenant-scoped identity.** Client-supplied IDs (trace ID, span ID, payload hash) are unique only *within a project*, and every key starts with `project_id`.
+4. **Privacy by default.** The end user's request isn't captured unless `capture_user_input=True`. Payloads are redacted in the SDK, and size-bounded, before they leave the process.
+
+## 2. Wire format
+
+- **Transport:** OTLP/HTTP, `POST {endpoint}/v1/traces`, protobuf (`application/x-protobuf`). JSON support on the server comes in increment 2.
+- **Auth:** `Authorization: Bearer <api key>`. The key determines the org, project and environment. Resource attributes such as `deployment.environment.name` are informational only.
+- **Batching and retry:** the OTel `BatchSpanProcessor` (default queue 2,048 spans, batch 256, 1 s schedule) and the OTLP exporter's built-in retry within `export_timeout_s` (default 5 s).
+- **Sampling:** head-based, `ParentBased(TraceIdRatioBased(sample_rate))`. A trace is kept or dropped as a whole. Head sampling can drop failing traces; tail sampling is a later item.
+
+## 3. Attributes emitted by the SDK
+
+`P` = payload attribute: emitted only when `capture_payloads=True`, then redacted and truncated (§4).
+
+### 3.1 Resource
+
+| Key | Value |
+|---|---|
+| `service.name` | `Config.service_name` |
+| `deployment.environment.name` | `Config.environment` (informational) |
+| `rootsignal.sdk.version` | SDK version |
+
+### 3.2 All spans
+
+| Key | Notes |
+|---|---|
+| `rootsignal.span.kind` | `agent` · `llm` · `tool` · `retrieval` |
+| `gen_ai.operation.name` | `invoke_agent` · `chat` (or caller-supplied) · `execute_tool` · `retrieval` |
+| `error.type` | Exception class `__qualname__`, or the type passed to `record_error()` |
+| `rootsignal.payload.truncated_fields` | List of payload keys cut to `max_payload_bytes` |
+| `rootsignal.payload.redacted` | `true` if redaction changed any payload on the span |
+| Event `exception` | `exception.type`, `exception.message` (≤1 KB), `exception.stacktrace` (≤8 KB), with **message and stack redacted**. The SDK deliberately doesn't use OTel's `record_exception`, which would export them unredacted. |
+
+Span status is `ERROR` on an exception or `record_error()`, and left `UNSET` otherwise, as the OTel spec asks of instrumentation.
+
+### 3.3 Agent run: `invoke_agent {name}`
+
+| Key | Notes |
+|---|---|
+| `gen_ai.agent.name`, `gen_ai.agent.version` | |
+| `rootsignal.prompt.version` | |
+| `gen_ai.conversation.id` | |
+| `rootsignal.user.id` | Should be a pseudonymous ID; never an e-mail address |
+| `rootsignal.run.max_steps` | Configured step limit, used by the step-limit detector |
+| `rootsignal.capture.user_input` | Whether this run's input was allowed to be captured |
+| `rootsignal.run.input` | `P`, **and** only if `capture_user_input=True`. With the decorator, the bound call arguments |
+| `rootsignal.run.output` | `P`. With the decorator, the return value |
+
+### 3.4 Model call: `{operation} {model}`
+
+| Key | Notes |
+|---|---|
+| `gen_ai.request.model`, `gen_ai.response.model` | |
+| `gen_ai.provider.name`, `gen_ai.system` | Same value; `gen_ai.system` is deprecated upstream but still read by many backends |
+| `gen_ai.request.temperature`, `gen_ai.request.max_tokens` | |
+| `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens` | |
+| `gen_ai.response.finish_reasons` | String array |
+| `rootsignal.llm.call_index` | 0-based order of model calls within the agent run |
+| `rootsignal.cost.usd` | Optional override; otherwise the server prices from tokens (increment 2) |
+| `gen_ai.input.messages` | `P`. `{role, content}` mappings. With `capture_user_input=False`, user-role `content` becomes `"[not captured]"`, and an unrecognised message shape is dropped entirely |
+| `gen_ai.output.messages` | `P` |
+
+### 3.5 Tool call: `execute_tool {name}`
+
+| Key | Notes |
+|---|---|
+| `gen_ai.tool.name`, `gen_ai.tool.description` | Description defaults to the docstring's first line |
+| `rootsignal.tool.side_effect` | `none` · `read` · `write` · `unknown` (default). Drives replay safety: `unknown` is treated as `write` |
+| `rootsignal.tool.args_hash` | 16 hex chars, always emitted (even with payloads off) so loops stay detectable. See §4.3 |
+| `rootsignal.tool.call_index` | 0-based order of tool calls within the innermost agent run |
+| `rootsignal.tool.repeat_index` | How many earlier calls in the run had the same name and `args_hash` |
+| `rootsignal.mcp.server` | Set when the tool is served by an MCP server |
+| `gen_ai.tool.call.arguments` | `P`. Bound arguments as a JSON object (`self`/`cls` excluded) |
+| `gen_ai.tool.call.result` | `P` |
+
+### 3.6 Retrieval: `retrieval {data_source}`
+
+| Key | Notes |
+|---|---|
+| `gen_ai.data_source.id` | |
+| `rootsignal.retrieval.top_k`, `rootsignal.retrieval.result_count` | |
+| `gen_ai.retrieval.query.text` | `P` |
+| `gen_ai.retrieval.documents` | `P`. List; `{id, score, content}` mappings recommended |
+
+## 4. Capture policy, redaction and limits
+
+### 4.1 What is captured
+
+| Setting (default) | Effect |
+|---|---|
+| `capture_payloads` (`true`) | Model, tool and retrieval I/O, and run output |
+| `capture_user_input` (`false`) | Run input and user-role model messages |
+| `redact_pii` (`true`) | Pattern redaction of every payload and exception text |
+| `max_payload_bytes` (32,768) | Per-attribute UTF-8 byte cap; never splits a character; appends `…[truncated]` |
+
+Known limitation: `capture_user_input=False` doesn't stop user text from reaching tool arguments or retrieval queries that the agent derived from it. Those are governed by `capture_payloads` and redaction. A regression case can't be built from a run whose input wasn't captured (increment 7 will mark it `input_not_captured`).
+
+### 4.2 Redaction
+
+Order: secrets (`sk-…`, `AKIA…`, GitHub and Slack tokens, `Bearer …`) → e-mail → digit patterns (Luhn-validated card numbers, US SSN, phone numbers with separators, IPv4). Replacements are `[REDACTED:<NAME>]`. Redaction runs **before** truncation, so a secret straddling the cut is still removed.
+
+Implementation: secret and e-mail patterns are skipped when a cheap substring prefilter (`"sk-"`, `"@"`, …) is absent. Digit patterns run only inside candidate runs of digits and separators, every pattern matches the unmodified run, and the **union** of all matched spans is redacted. A randomized test checks 20,000 cases: windowed redaction never leaves a sample in place that a full-text scan removes. It is still best-effort pattern matching; names, addresses and free-form identifiers aren't detected.
+
+### 4.3 `args_hash`
+
+`sha256(tool_name ∖0 canonical_json(args))[:16]`, computed over the **raw** arguments so that two calls differing only in redacted values aren't mistaken for repeats. Low-entropy arguments (e.g. an account number) could be recovered by brute force from a plain hash, so setting `args_hash_key` switches to HMAC-SHA256. The key must be stable across runs, or replay matching breaks.
+
+### 4.4 Measured SDK overhead
+
+From `make bench` on an Apple M5, Python 3.14, realistic JSON tool arguments, discarding exporter (export runs on a background thread and isn't measured). These are numbers from one machine, not a benchmark claim.
+
+| Payload | Redaction on (p50 / p95) | Redaction off (p50 / p95) |
+|---|---|---|
+| 2 KB | 96 / 105 µs | 25 / 31 µs |
+| 30 KB | 1,157 / 1,191 µs | 141 / 150 µs |
+
+The ADR-003 target (<1 ms p50 per span) holds at typical payload sizes and is missed slightly at the 30 KB cap. Follow-up: move redaction onto the export thread, which needs care because truncation would then come before redaction.
+
+## 5. Canonical tables
+
+Defined in migration `0001`. Common rules:
+- Tenant columns `org_id`, `project_id` and, where relevant, `environment_id` are on every row. **Composite foreign keys** `(org_id, project_id) → projects` and `(project_id, environment_id) → environments` make the database itself reject a row whose org, project and environment don't belong together.
+- Deleting a project cascades to all its environments, keys, traces, spans, payloads and jobs.
+
+### 5.1 `traces`: PK `(project_id, trace_id)`
+
+`trace_id` (32 hex), `root_span_id`, `service_name`, `agent_name`, `agent_version`, `prompt_version`, `conversation_id`, `status ∈ {unset, ok, error}`, `source ∈ {production, replay}`, `replay_case_id`, `started_at`, `ended_at`, `duration_ms`, roll-ups (`span_count`, `error_count`, `llm_call_count`, `tool_call_count`, `input_tokens`, `output_tokens`, `cost_usd`), `completed_at` (set when the trace is judged complete; detection runs then).
+
+### 5.2 `spans`: PK `(project_id, trace_id, span_id)`, FK → `traces`
+
+| Column | Source (rootsignal dialect) |
+|---|---|
+| `span_id` (16 hex), `parent_span_id` | OTLP span |
+| `kind ∈ {agent, llm, tool, retrieval, mcp, chain, other}` | `rootsignal.span.kind`; `tool` + `rootsignal.mcp.server` → `mcp` |
+| `name`, `started_at`, `ended_at`, `duration_ms` | OTLP span |
+| `status ∈ {unset, ok, error}`, `status_message`, `error_type` | OTLP status, `error.type` |
+| `model`, `provider` | `gen_ai.response.model` ?? `gen_ai.request.model`; `gen_ai.provider.name` ?? `gen_ai.system` |
+| `input_tokens`, `output_tokens`, `cost_usd` | `gen_ai.usage.*`, `rootsignal.cost.usd` or priced server-side |
+| `tool_name`, `side_effect`, `args_hash`, `call_index`, `repeat_index` | §3.5 |
+| `input_payload_hash`, `output_payload_hash` | SHA-256 of the payload body (§5.3). Input = run input / input messages / tool arguments / retrieval query; output = run output / output messages / tool result / documents |
+| `attributes` (JSONB) | Remaining attributes, size-bounded |
+| `events` (JSONB) | Span events (exceptions) |
+| `dialect ∈ {rootsignal, gen_ai, openinference, openllmetry, unknown}` | Which adapter normalised the span |
+
+Kind mapping for other dialects (increment 2; to be checked against recorded fixtures before it's relied on): spans that have only GenAI conventions map by `gen_ai.operation.name` (`chat`/`text_completion`/`generate_content` → `llm`, `execute_tool` → `tool`, `invoke_agent` → `agent`, `retrieval` → `retrieval`). OpenInference maps by `openinference.span.kind`. Anything unrecognised → `other`, keeping its raw attributes.
+
+### 5.3 `payloads`: PK `(project_id, sha256)`
+
+`body` (text), `byte_size`, `truncated`, `redaction_state ∈ {none, sdk, server, unknown}`, `content_type ∈ {text, json}`, `last_referenced_at` (for retention). Content-addressed and deduplicated **within a project only**, so no cross-tenant deduplication can leak whether another tenant stored the same content. Spans reference payloads without a foreign key, so retention can delete bodies independently; readers treat a missing body as expired.
+
+### 5.4 Tenancy and access tables
+
+`organizations`, `projects` (`retention_days` default 14), `environments`, `api_keys` (`prefix` shown to users, `key_hash` = SHA-256 of the full key, which is never stored; `scopes ⊆ {ingest, read, admin}`, non-empty; `revoked_at`).
+
+### 5.5 `jobs`
+
+Durable queue: `kind`, `payload` (JSONB), `status ∈ {queued, running, done, failed, dead}`, `priority`, `attempts`/`max_attempts`, `run_after`, `locked_at`/`locked_by`, `dedupe_key` (unique among `queued`/`running` jobs only). `org_id`/`project_id` are both set or both NULL (system jobs).
+
+## 6. Versioning
+
+Additive attribute changes don't bump anything. Renaming or removing a `rootsignal.*` key, or changing a column's meaning, requires a migration and a compatibility note here; ingest keeps reading the old key for at least one minor SDK version.
