@@ -6,6 +6,8 @@ import argparse
 import getpass
 import sys
 
+from sqlalchemy import text
+
 from rootsignal_server import admin
 from rootsignal_server.storage.db import make_engine
 
@@ -33,6 +35,11 @@ def main(argv: list[str] | None = None) -> int:
 
     revoke = commands.add_parser("revoke-key", help="revoke an API key by its prefix")
     revoke.add_argument("prefix")
+
+    regroup = commands.add_parser(
+        "regroup-issues", help="group existing findings into issues (backfill or config change)")
+    regroup.add_argument("--org", required=True)
+    regroup.add_argument("--project", required=True)
 
     worker = commands.add_parser("worker", help="run the background job worker")
     worker.add_argument("--once", action="store_true",
@@ -66,6 +73,16 @@ def main(argv: list[str] | None = None) -> int:
                 print(created.plaintext)
                 print(f"(prefix {created.prefix}; store this key now, it is not shown again)",
                       file=sys.stderr)
+            elif args.command == "regroup-issues":
+                from rootsignal_server.issues.grouping import regroup_project
+
+                project_id = conn.execute(text(
+                    "SELECT p.id FROM projects p JOIN organizations o ON o.id = p.org_id "
+                    "WHERE o.slug = :o AND p.slug = :p"),
+                    {"o": args.org, "p": args.project}).scalar_one_or_none()
+                if project_id is None:
+                    raise admin.AdminError(f"no project {args.org}/{args.project}")
+                print(f"regrouped {regroup_project(conn, project_id)} traces")
             elif args.command == "revoke-key":
                 admin.revoke_api_key(conn, args.prefix, actor=_actor())
                 print(f"revoked {args.prefix}")

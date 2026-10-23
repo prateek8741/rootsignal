@@ -8,7 +8,7 @@ from sqlalchemy import Engine, text
 from starlette.concurrency import run_in_threadpool
 
 from rootsignal_server import __version__
-from rootsignal_server.api import routes_ingest, routes_traces
+from rootsignal_server.api import routes_ingest, routes_issues, routes_traces
 from rootsignal_server.api.deps import AppState, app_state
 from rootsignal_server.api.errors import install_error_handlers
 from rootsignal_server.auth.rate_limit import RateLimiter
@@ -29,6 +29,7 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
     install_error_handlers(app)
     app.include_router(routes_ingest.router)
     app.include_router(routes_traces.router)
+    app.include_router(routes_issues.router)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:

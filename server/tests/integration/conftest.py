@@ -156,7 +156,8 @@ class Harness:
 
     def set_project(self, tenant: admin.TenantIds, **columns: Any) -> None:
         assignments = ", ".join(
-            f"{c} = CAST(:{c} AS jsonb)" if c == "detector_config" else f"{c} = :{c}"
+            f"{c} = CAST(:{c} AS jsonb)" if c in ("detector_config", "issue_grouping")
+            else f"{c} = :{c}"
             for c in columns)
         with self.engine.begin() as conn:
             conn.execute(text(f"UPDATE projects SET {assignments} WHERE id = :id"),

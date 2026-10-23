@@ -5,7 +5,7 @@ Status: v0, implemented in increment 2. Base URL for local dev: `http://127.0.0.
 ## 1. Authentication and tenancy
 
 - Every `/v1` endpoint requires `Authorization: Bearer <key>`. Keys look like `rs_` + 43 URL-safe characters. Only a SHA-256 of the key is stored; the plaintext is shown once, at creation.
-- A key belongs to exactly one **org → project → environment** and has scopes from `ingest`, `read` and `admin`. `admin` is reserved; no endpoint uses it yet.
+- A key belongs to exactly one **org → project → environment** and has scopes from `ingest`, `read`, `triage` (change issue status) and `admin`. `admin` is reserved; no endpoint uses it yet.
 - **A key sees only its own environment.** A trace or payload from another tenant, project or environment returns **404**, never 403, so IDs can't be probed.
 - Keys are created and revoked with the CLI (no HTTP admin API until user accounts exist, Phase 2). Each action writes an `audit_events` row:
 
@@ -25,6 +25,7 @@ Non-OTLP error bodies are JSON: `{"error": {"code": "<code>", "message": "<text>
 | 401 | `unauthenticated` | Missing, malformed, unknown or revoked key (`WWW-Authenticate: Bearer`) | No |
 | 403 | `forbidden` | Key lacks the endpoint's scope | No |
 | 404 | `not_found` | Unknown **or other tenant's** resource | No |
+| 409 | `invalid_transition` | Issue status change not allowed (already in that status; `fixed_in_version` without resolving) | No |
 | 413 | `payload_too_large` | Body or decompressed body over the limit | No |
 | 415 | `unsupported_media_type` | Not protobuf or JSON | No |
 | 422 | (FastAPI validation) | Malformed path/query parameter, e.g. a non-hex trace ID | No |
@@ -76,10 +77,34 @@ Newest first. Query parameters: `limit` (1–200, default 50), `cursor` (opaque,
 
 Returns `{sha256, body, byte_size, truncated, content_type, redaction_state}`, but only if a span in the caller's environment references the payload; otherwise 404.
 
-## 5. Operational endpoints (no auth)
+## 5. Issues
+
+See [ISSUES.md](ISSUES.md) for grouping and lifecycle rules.
+
+### `GET /v1/issues` (scope `read`)
+
+Filters: `status` (`open|resolved|ignored`), `severity`, `detector`, `agent_name`, `regression` (bool). `sort`: `last_seen` (default), `occurrences` or `severity`, each with keyset pagination (`limit` ≤ 200, opaque `cursor`). Response `{"items": [IssueSummary], "next_cursor"}`.
+
+`IssueSummary`: `id`, `fingerprint`, `components`, `detector`, `agent_name`, `tool_name`, `error_type`, `title`, `description`, `severity`, `status`, `is_regression`, `regression_count`, `last_regressed_at`, `first_seen_at`, `last_seen_at`, `occurrence_count` (distinct traces), `affected_versions`, `first_trace_id`, `latest_trace_id`, `worst_trace_id`, `resolved_at`, `fixed_in_version`, `created_at`, `updated_at`.
+
+### `GET /v1/issues/{id}` (scope `read`)
+
+`{"issue": IssueSummary, "versions": [{agent_version, occurrences, first_seen_at, last_seen_at}], "events": [{kind, actor, from_status, to_status, details, created_at}], "recent_occurrences": [Occurrence]}`. An `Occurrence` has `id`, `trace_id`, `finding_id`, `agent_version`, `severity`, `occurred_at`, `finding_title`, `finding_summary`; there are up to 20, newest first.
+
+### `GET /v1/issues/{id}/occurrences` (scope `read`)
+
+All occurrences, newest first, keyset-paginated.
+
+### `POST /v1/issues/{id}/status` (scope `triage`)
+
+Body `{"status": "open"|"resolved"|"ignored", "fixed_in_version"?: string, "note"?: string ≤ 2000}`. Returns the updated `IssueSummary` and records a `status_changed` event with actor `api_key:<prefix>`. Errors: 409 for a no-op or invalid combination, 404 for an unknown or other-tenant issue.
+
+Findings in `GET /v1/traces/{id}` carry `issue_id`.
+
+## 6. Operational endpoints (no auth)
 
 `GET /healthz` → `{"status": "ok"}` (process up). `GET /readyz` → 200 if the database answers, else 503.
 
-## 6. Not yet implemented
+## 7. Not yet implemented
 
-HTTP key management and user auth (Phase 2), finding search and issue/investigation endpoints (increments 4–6), editing `detector_config` over HTTP, `/v1/metrics` and `/v1/logs`, OTLP/gRPC, a `google.rpc.Status` error body, and retention enforcement (the `retention_days` setting exists but no deletion job runs yet).
+HTTP key management and user auth (Phase 2), investigation endpoints (increment 6), issue merge/split, editing `detector_config` over HTTP, `/v1/metrics` and `/v1/logs`, OTLP/gRPC, a `google.rpc.Status` error body, and retention enforcement (the `retention_days` setting exists but no deletion job runs yet).

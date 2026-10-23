@@ -5,9 +5,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TraceSummary(BaseModel):
@@ -82,6 +82,7 @@ class FindingOut(BaseModel):
     error_type: str | None
     created_at: datetime
     updated_at: datetime
+    issue_id: uuid.UUID | None
 
 
 class TraceDetail(BaseModel):
@@ -97,3 +98,83 @@ class PayloadOut(BaseModel):
     truncated: bool
     content_type: str
     redaction_state: str
+
+
+# --- issues -------------------------------------------------------------------
+
+class IssueSummary(BaseModel):
+    id: uuid.UUID
+    fingerprint: str
+    components: dict[str, Any]
+    detector: str
+    agent_name: str | None
+    tool_name: str | None
+    error_type: str | None
+    title: str
+    description: str
+    severity: str
+    status: str
+    is_regression: bool
+    regression_count: int
+    last_regressed_at: datetime | None
+    first_seen_at: datetime
+    last_seen_at: datetime
+    occurrence_count: int
+    affected_versions: list[str]
+    first_trace_id: str | None
+    latest_trace_id: str | None
+    worst_trace_id: str | None
+    resolved_at: datetime | None
+    fixed_in_version: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class IssueList(BaseModel):
+    items: list[IssueSummary]
+    next_cursor: str | None
+
+
+class IssueVersion(BaseModel):
+    agent_version: str | None
+    occurrences: int
+    first_seen_at: datetime
+    last_seen_at: datetime
+
+
+class IssueEventOut(BaseModel):
+    kind: str
+    actor: str
+    from_status: str | None
+    to_status: str | None
+    details: dict[str, Any]
+    created_at: datetime
+
+
+class OccurrenceOut(BaseModel):
+    id: uuid.UUID
+    trace_id: str
+    finding_id: uuid.UUID
+    agent_version: str | None
+    severity: str
+    occurred_at: datetime
+    finding_title: str
+    finding_summary: str
+
+
+class OccurrenceList(BaseModel):
+    items: list[OccurrenceOut]
+    next_cursor: str | None
+
+
+class IssueDetail(BaseModel):
+    issue: IssueSummary
+    versions: list[IssueVersion]
+    events: list[IssueEventOut]
+    recent_occurrences: list[OccurrenceOut]
+
+
+class StatusChange(BaseModel):
+    status: Literal["open", "resolved", "ignored"]
+    fixed_in_version: str | None = Field(default=None, min_length=1, max_length=200)
+    note: str | None = Field(default=None, max_length=2000)

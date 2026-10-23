@@ -103,17 +103,19 @@ def get_trace(conn: Connection, tenant: TenantContext,
 
 
 _FINDING_COLUMNS = (
-    "id, detector, detector_version, finding_key, severity, title, summary, "
-    "evidence_span_ids, facts, tool_name, error_type, created_at, updated_at"
+    "f.id, f.detector, f.detector_version, f.finding_key, f.severity, f.title, f.summary, "
+    "f.evidence_span_ids, f.facts, f.tool_name, f.error_type, f.created_at, f.updated_at, "
+    "o.issue_id"
 )
 
 
 def get_findings(conn: Connection, tenant: TenantContext, trace_id: str) -> list[dict[str, Any]]:
     rows = conn.execute(text(
-        f"SELECT {_FINDING_COLUMNS} FROM findings "
-        "WHERE project_id = :p AND environment_id = :e AND trace_id = :t "
-        "ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 "
-        "WHEN 'medium' THEN 2 ELSE 3 END, detector, finding_key"),
+        f"SELECT {_FINDING_COLUMNS} FROM findings f "
+        "LEFT JOIN issue_occurrences o ON o.finding_id = f.id "
+        "WHERE f.project_id = :p AND f.environment_id = :e AND f.trace_id = :t "
+        "ORDER BY CASE f.severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 "
+        "WHEN 'medium' THEN 2 ELSE 3 END, f.detector, f.finding_key"),
         {"p": tenant.project_id, "e": tenant.environment_id, "t": trace_id}).mappings().all()
     return [dict(r) for r in rows]
 
