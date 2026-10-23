@@ -45,10 +45,14 @@ async def list_traces(
     agent_version: str | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
+    source: Annotated[str, Query(pattern="^(production|replay|all)$",
+                                 description="replay: traces from `rootsignal replay` runs")
+                      ] = "production",
 ) -> TraceList:
     engine = app_state(request).engine
     filters = queries.TraceFilters(status=status, agent_name=agent_name,
-                                   agent_version=agent_version, since=since, until=until)
+                                   agent_version=agent_version, since=since, until=until,
+                                   source=None if source == "all" else source)
 
     def run() -> TraceList:
         with engine.connect() as conn:

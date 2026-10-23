@@ -28,11 +28,13 @@ from opentelemetry.trace import Span, Status, StatusCode
 from rootsignal import _attributes as A
 from rootsignal import _runtime
 from rootsignal._serialize import args_hash, prepare
+from rootsignal.replay import session as _replay
 
 logger = logging.getLogger("rootsignal")
 
 P = ParamSpec("P")
 R = TypeVar("R")
+T = TypeVar("T")
 _S = TypeVar("_S", bound="_Scope")
 
 NOT_CAPTURED = "[not captured]"
@@ -232,6 +234,10 @@ class AgentRun(_Scope):
     def _start(self) -> None:
         super()._start()
         self._run_token = _current_run.set(_RunState())
+        session = _replay.active()
+        context = self._span.get_span_context()
+        if session is not None and context.is_valid:
+            session.note_trace(format(context.trace_id, "032x"))
 
     def _on_start(self) -> None:
         captured = _runtime.config().capture_user_input
@@ -287,7 +293,8 @@ def _coerce_side_effect(value: SideEffect | str) -> SideEffect:
 class ToolCall(_Scope):
     def __init__(self, name: str, *, arguments: Any = None,
                  side_effect: SideEffect | str = SideEffect.UNKNOWN,
-                 description: str | None = None, mcp_server: str | None = None) -> None:
+                 description: str | None = None, mcp_server: str | None = None,
+                 _managed: bool = False) -> None:
         effect = _coerce_side_effect(side_effect)
         super().__init__(f"{A.OP_EXECUTE_TOOL} {name}", {
             A.RS_SPAN_KIND: A.KIND_TOOL,
@@ -300,6 +307,16 @@ class ToolCall(_Scope):
         self.name = name
         self.side_effect = effect
         self.arguments = arguments
+        self._managed = _managed  # created by @tool, which replay can intercept
+
+    def _start(self) -> None:
+        session = _replay.active()
+        if session is not None and not self._managed and self.side_effect != SideEffect.NONE:
+            # A with-block can't be skipped, so replay can't serve a recording or keep a
+            # side effect from happening: fail closed.
+            session.unsupported(f"tool_call block '{self.name}' ({self.side_effect.value}) "
+                                "can't be replayed; decorate the tool with @rs.tool")
+        super()._start()
 
     def _on_start(self) -> None:
         cfg = _runtime.config()
@@ -349,9 +366,10 @@ def tool(func_or_name: Any = None, /, *, side_effect: SideEffect | str = SideEff
 
         def make(args: tuple[Any, ...], kwargs: dict[str, Any]) -> ToolCall:
             return ToolCall(name, arguments=_bind_arguments(signature, args, kwargs),
-                            side_effect=effect, description=doc, mcp_server=mcp_server)
+                            side_effect=effect, description=doc, mcp_server=mcp_server,
+                            _managed=True)
 
-        return _wrap(func, make, capture_result=lambda scope, result: scope.set_result(result))
+        return _wrap_tool(func, make)
 
     if callable(func_or_name):
         return decorate(func_or_name)
@@ -389,6 +407,9 @@ class LLMCall(_Scope):
             A.GEN_AI_REQUEST_MAX_TOKENS: max_tokens,
         })
         self._input_messages = input_messages
+        self._model = model
+        self._ran = False
+        self._output_recorded = False
 
     def _on_start(self) -> None:
         run = _current_run.get()
@@ -417,7 +438,53 @@ class LLMCall(_Scope):
             if value is not None:
                 self.set_attribute(key, value)
         if output_messages is not None and _runtime.config().capture_payloads:
+            self._output_recorded = True
             self._set_payload(A.GEN_AI_OUTPUT_MESSAGES, output_messages)
+
+    def _served(self) -> tuple[bool, Any]:
+        self._ran = True
+        session = _replay.active()
+        if session is None:
+            return False, None
+        decision = session.resolve_model(self._model)
+        if decision.action != "serve":
+            return False, None
+        self.set_attribute("rootsignal.replay.served", True)
+        self._record_output(decision.value)
+        return True, decision.value
+
+    def _record_output(self, value: Any) -> None:
+        if not self._output_recorded and _runtime.config().capture_payloads:
+            self._output_recorded = True
+            self._set_payload(A.GEN_AI_OUTPUT_MESSAGES, value)
+
+    def run(self, fn: Callable[[], T]) -> T:
+        """Call the model through ``fn`` and record what it returns.
+
+        During recorded replay ``fn`` isn't called: the recorded value is returned
+        instead, so return JSON-serialisable values for faithful replay.
+        """
+        served, value = self._served()
+        if served:
+            return cast(T, value)
+        result = fn()
+        self._record_output(result)
+        return result
+
+    async def arun(self, fn: Callable[[], Awaitable[T]]) -> T:
+        """Async form of :meth:`run`."""
+        served, value = self._served()
+        if served:
+            return cast(T, value)
+        result = await fn()
+        self._record_output(result)
+        return result
+
+    def _finish(self, exc: BaseException | None) -> None:
+        session = _replay.active()
+        if session is not None and not self._ran:
+            session.note_uncontrolled_model_call(self._model)
+        super()._finish(exc)
 
 
 def llm_call(model: str, *, provider: str | None = None, operation: str = A.OP_CHAT,
@@ -497,6 +564,55 @@ def _bind_arguments(signature: inspect.Signature | None, args: tuple[Any, ...],
         return arguments
     except Exception:
         return {"args": [repr(a) for a in args], "kwargs": {k: repr(v) for k, v in kwargs.items()}}
+
+
+def _replay_decision(scope: ToolCall, func: Callable[..., Any]) -> _replay.Decision | None:
+    session = _replay.active()
+    if session is None:
+        return None
+    digest = args_hash(scope.name, scope.arguments, _runtime.config().args_hash_key)
+    decision = session.resolve_tool(scope.name, scope.arguments, digest,
+                                    scope.side_effect.value, func)
+    if decision.action == "raise" and decision.error is not None:
+        raise decision.error
+    if decision.action == "serve":
+        scope.set_attribute("rootsignal.replay.served", True)
+    elif decision.action == "stub":
+        scope.set_attribute("rootsignal.replay.stubbed", True)
+    return decision
+
+
+def _wrap_tool(func: Callable[P, R],
+               make: Callable[[tuple[Any, ...], dict[str, Any]], ToolCall]) -> Callable[P, R]:
+    """Like ``_wrap``, but an active replay session may answer instead of ``func``."""
+    if inspect.iscoroutinefunction(func):
+        coroutine_fn = cast(Callable[P, Awaitable[R]], func)
+
+        @functools.wraps(func)
+        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            scope = make(args, kwargs)
+            async with scope:
+                decision = _replay_decision(scope, func)
+                if decision is None or decision.action == "live":
+                    result = await coroutine_fn(*args, **kwargs)
+                else:
+                    result = cast(R, decision.value)
+                scope.set_result(result)
+                return result
+        return async_wrapper  # type: ignore[return-value]
+
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        scope = make(args, kwargs)
+        with scope:
+            decision = _replay_decision(scope, func)
+            if decision is None or decision.action == "live":
+                result = func(*args, **kwargs)
+            else:
+                result = cast(R, decision.value)
+            scope.set_result(result)
+            return result
+    return wrapper
 
 
 def _wrap(func: Callable[P, R], make: Callable[[tuple[Any, ...], dict[str, Any]], Any],

@@ -8,16 +8,18 @@ description = "Rootsignal monorepo workspace root (not published)"
 package = false
 
 [tool.uv.workspace]
-members = ["sdk/python", "server"]
+members = ["sdk/python", "server", "examples"]
 
 [tool.uv.sources]
 rootsignal = { workspace = true, editable = true }
 rootsignal-server = { workspace = true, editable = true }
+rootsignal-examples = { workspace = true, editable = true }
 
 [dependency-groups]
 dev = [
     "rootsignal",
     "rootsignal-server",
+    "rootsignal-examples",
     "pytest>=8",
     "pytest-asyncio>=0.24",
     "ruff>=0.8",
@@ -41,4 +43,4 @@ python_version = "3.12"
 "server/migrations/versions/*" = ["E501", "I001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["rootsignal", "rootsignal_server", "conftest", "otlp_factory", "run_detector_eval"]
+known-first-party = ["rootsignal", "rootsignal_server", "rootsignal_examples", "conftest", "otlp_factory", "run_detector_eval"]

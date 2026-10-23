@@ -44,6 +44,7 @@ class TraceFilters:
     agent_version: str | None = None
     since: datetime | None = None
     until: datetime | None = None
+    source: str | None = "production"  # None: production and replay traces
 
 
 def _encode_cursor(started_at: datetime, trace_id: str) -> str:
@@ -65,6 +66,9 @@ def list_traces(conn: Connection, tenant: TenantContext, filters: TraceFilters, 
     clauses = ["project_id = :p", "environment_id = :e"]
     params: dict[str, Any] = {"p": tenant.project_id, "e": tenant.environment_id,
                               "limit": limit + 1}
+    if filters.source:
+        clauses.append("source = :source")
+        params["source"] = filters.source
     if filters.status:
         clauses.append("status = :status")
         params["status"] = filters.status

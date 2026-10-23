@@ -29,6 +29,7 @@ Sources of truth: `sdk/python/src/rootsignal/_attributes.py` (wire attributes) a
 | `service.name` | `Config.service_name` |
 | `deployment.environment.name` | `Config.environment` (informational) |
 | `rootsignal.sdk.version` | SDK version |
+| `rootsignal.replay.run_id`, `rootsignal.replay.case_id`, `rootsignal.replay.mode` | Set only by the replay child process ([REPLAY.md](REPLAY.md)). The server stores a trace carrying a valid `run_id` as `source = replay` |
 | `rootsignal.sdk.redaction` | `pattern` if the SDK redacted payloads, `off` otherwise. The server uses it to set `payloads.redaction_state` and to decide whether to redact again (§5.3) |
 
 ### 3.2 All spans
@@ -82,6 +83,7 @@ Span status is `ERROR` on an exception or `record_error()`, and left `UNSET` oth
 | `rootsignal.tool.call_index` | 0-based order of tool calls within the innermost agent run |
 | `rootsignal.tool.repeat_index` | How many earlier calls in the run had the same name and `args_hash` |
 | `rootsignal.mcp.server` | Set when the tool is served by an MCP server |
+| `rootsignal.replay.served`, `rootsignal.replay.stubbed` | Replay only: the result came from the recording, or a write/unknown tool was stubbed instead of executed. Model-call spans served from the recording also carry `rootsignal.replay.served` |
 | `gen_ai.tool.call.arguments` | `P`. Bound arguments as a JSON object (`self`/`cls` excluded) |
 | `gen_ai.tool.call.result` | `P` |
 
@@ -136,7 +138,7 @@ Defined in migration `0001`. Common rules:
 
 ### 5.1 `traces`: PK `(project_id, trace_id)`
 
-`trace_id` (32 hex), `root_span_id`, `service_name`, `agent_name`, `agent_version`, `prompt_version`, `conversation_id`, `status ∈ {unset, ok, error}`, `source ∈ {production, replay}`, `replay_case_id`, `started_at`, `ended_at`, `duration_ms`, roll-ups (`span_count`, `error_count`, `llm_call_count`, `tool_call_count`, `input_tokens`, `output_tokens`, `cost_usd`), `completed_at` (set when the trace is judged complete; detection runs then).
+`trace_id` (32 hex), `root_span_id`, `service_name`, `agent_name`, `agent_version`, `prompt_version`, `conversation_id`, `status ∈ {unset, ok, error}`, `source ∈ {production, replay}`, `replay_run_id` (from the resource attribute `rootsignal.replay.run_id`), `replay_case_id` (reserved, not populated), `started_at`, `ended_at`, `duration_ms`, roll-ups (`span_count`, `error_count`, `llm_call_count`, `tool_call_count`, `input_tokens`, `output_tokens`, `cost_usd`), `completed_at` (set when the trace is judged complete; detection runs then).
 
 ### 5.2 `spans`: PK `(project_id, trace_id, span_id)`, FK → `traces`
 
@@ -180,7 +182,11 @@ Tool spans without `rootsignal.tool.args_hash` (non-Rootsignal SDKs) get one der
 
 ### 5.10 Regression cases (migration `0006`)
 
-`regression_cases` holds identity and status: issue, source trace (no FK; a case outlives its trace), name, status (`draft` now; replay statuses in increment 8), current version. `regression_case_versions` holds immutable spec snapshots (`spec` JSONB, change note, author) keyed by `(case_id, version)`. See [REGRESSION_CASES.md](REGRESSION_CASES.md).
+`regression_cases` holds identity and status: issue, source trace (no FK; a case outlives its trace), name, status (`draft`, `reproduced`, `not_reproduced`, `passing`, `failing`), current version. `regression_case_versions` holds immutable spec snapshots (`spec` JSONB, change note, author) keyed by `(case_id, version)`. See [REGRESSION_CASES.md](REGRESSION_CASES.md).
+
+### 5.11 Replay runs (migration `0007`)
+
+`replay_runs`: tenant columns, case and case version (FK `(project_id, case_id)` → `regression_cases`), `purpose`, `mode`, `matching`, `status`, `verdict`, `summary`, `requested_by`, `trace_id`, the child's `report` and the per-assertion `results` (JSONB), plus timestamps. Migration `0007` also adds `traces.replay_run_id`, the `replay` API-key scope and the `replayed` issue event. See [REPLAY.md](REPLAY.md).
 
 ### 5.9 Sessions and investigations (migration `0005`)
 

@@ -1,6 +1,6 @@
 # Regression Cases
 
-Status: v1, implemented in increment 7. Code: `server/src/rootsignal_server/regression/`. Replay, which executes cases, is increment 8.
+Status: v1, implemented in increment 7. Code: `server/src/rootsignal_server/regression/`. Cases are executed by [replay](REPLAY.md) (increment 8).
 
 A **regression case** turns one failing production run into a repeatable test. It holds everything needed to run the agent again on the same input with the same tool results and model outputs, plus **assertions** that fail on the original run and should pass once the bug is fixed.
 
@@ -53,13 +53,13 @@ Cases are versioned and immutable. `PATCH /v1/regression-cases/{id}` (name, `ent
 
 ## 5. Status
 
-Cases start as `draft`. Replay (increment 8) will set:
-- `reproduced` / `not_reproduced`: does replay against the unfixed code fail like production did? A case that can't reproduce the failure is never reported as a passing test.
-- `passing` / `failing`: after a fix.
+Cases start as `draft`. [Replay](REPLAY.md#4-verdicts) sets:
+- `reproduced` / `not_reproduced`: does replay against the unfixed code (`--purpose reproduce`) fail like production did?
+- `passing` / `failing`: after a fix (`--purpose verify`). A case that never reproduced the failure is never marked `passing`.
 
 ## 6. Limits
 
 - **Recorded replay** can verify fixes to agent logic, such as retry handling, loop limits and error handling. Fixes to tools, prompts or models need live tools or a live model; assertions say which.
 - **Redaction and truncation** in the source data reduce fidelity, and the case says so. Capturing more data (`capture_user_input`, a higher `max_payload_bytes`) is the project's privacy decision.
-- **Fixture matching** across reordered calls (after a fix changes the call sequence) is defined in increment 8.
+- **Fixture matching**: by tool name and `args_hash` by default, so a fix may reorder calls; `--match strict_order` requires the recorded sequence. See [REPLAY.md §3](REPLAY.md#3-what-the-agent-code-sees).
 - **Agents in standalone scripts** (`__main__`) or nested functions can't be imported by replay. Package your agent's entrypoint as an importable function.

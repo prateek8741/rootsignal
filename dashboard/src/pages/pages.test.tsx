@@ -139,6 +139,16 @@ describe("traces page", () => {
     const [request] = calls(fetchMock, "GET", "/v1/traces");
     expect(new URL(String(request?.[0]), "http://x").searchParams.get("agent_name")).toBe("support-agent");
   });
+
+  it("shows production traces by default and replays on request", async () => {
+    const fetchMock = mockApi((url) => url.pathname === "/v1/traces" ? { body: { items: [], next_cursor: null } } : undefined);
+    renderWithProviders(<AppRoutes />, { route: "/traces" });
+    await userEvent.selectOptions(await screen.findByLabelText("Source"), "Replays");
+    await waitFor(() => expect(calls(fetchMock, "GET", "/v1/traces")).toHaveLength(2));
+    const [first, second] = calls(fetchMock, "GET", "/v1/traces").map(([input]) => new URL(String(input), "http://x"));
+    expect(first?.searchParams.has("source")).toBe(false); // the API defaults to production
+    expect(second?.searchParams.get("source")).toBe("replay");
+  });
 });
 
 describe("trace detail", () => {
@@ -161,6 +171,13 @@ describe("trace detail", () => {
     expect(within(failedRow).getByText("repeat #2")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /called 3 times/ }));
     expect(within(failedRow).getByText("(evidence)")).toBeInTheDocument();
+  });
+
+  it("marks traces produced by a replay", async () => {
+    mockApi((url) => url.pathname.startsWith("/v1/traces/")
+      ? { body: { ...detail, trace: traceSummary({ source: "replay" }) } } : undefined);
+    renderWithProviders(<AppRoutes />, { route: `/traces/${traceSummary().trace_id}` });
+    expect(await screen.findByText("replay")).toHaveAttribute("title", expect.stringMatching(/rootsignal replay/));
   });
 
   it("preselects the span named in ?span=", async () => {

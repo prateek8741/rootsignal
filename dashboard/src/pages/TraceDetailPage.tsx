@@ -4,7 +4,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, type Finding } from "../api/client";
 import { SpanDetails } from "../components/SpanDetails";
 import { SpanWaterfall } from "../components/SpanWaterfall";
-import { Card, EmptyState, ErrorBox, Loading, SeverityBadge, Stat, TraceStatusBadge } from "../components/ui";
+import { Badge, Card, EmptyState, ErrorBox, Loading, SeverityBadge, Stat, TraceStatusBadge } from "../components/ui";
 import { formatCost, formatDuration, formatTime, formatTokens } from "../lib/format";
 import { evidenceSpanIds } from "../lib/spanTree";
 
@@ -73,6 +73,7 @@ export function TraceDetailPage() {
           {trace.agent_name ?? "Trace"}
           {trace.agent_version && <span className="text-base font-normal text-slate-500">{trace.agent_version}</span>}
           <TraceStatusBadge status={trace.status} />
+          {trace.source === "replay" && <Badge tone="violet" title="Produced by `rootsignal replay`, not by production traffic">replay</Badge>}
         </h1>
         <p className="font-mono text-xs text-slate-500">{trace.trace_id}</p>
       </div>

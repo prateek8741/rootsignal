@@ -9,6 +9,7 @@ resolution-markers = [
 [manifest]
 members = [
     "rootsignal",
+    "rootsignal-examples",
     "rootsignal-server",
     "rootsignal-workspace",
 ]
@@ -1224,6 +1225,17 @@ requires-dist = [
 ]
 
 [[package]]
+name = "rootsignal-examples"
+version = "0.1.0.dev0"
+source = { editable = "examples" }
+dependencies = [
+    { name = "rootsignal" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "rootsignal", editable = "sdk/python" }]
+
+[[package]]
 name = "rootsignal-server"
 version = "0.1.0.dev0"
 source = { editable = "server" }
@@ -1266,6 +1278,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "rootsignal" },
+    { name = "rootsignal-examples" },
     { name = "rootsignal-server" },
     { name = "ruff" },
     { name = "types-protobuf" },
@@ -1280,6 +1293,7 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
     { name = "rootsignal", editable = "sdk/python" },
+    { name = "rootsignal-examples", editable = "examples" },
     { name = "rootsignal-server", editable = "server" },
     { name = "ruff", specifier = ">=0.8" },
     { name = "types-protobuf", specifier = ">=7.35.1.20260906" },

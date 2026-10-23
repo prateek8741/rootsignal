@@ -2,13 +2,9 @@ from __future__ import annotations
 
 import contextlib
 import json
-import socket
-import threading
-import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 
 import pytest
-import uvicorn
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
@@ -19,9 +15,8 @@ import rootsignal as rs
 from conftest import PROTOBUF, TEST_DATABASE_URL, Harness, make_harness
 from otlp_factory import TRACE_ID, raw_request, record_sdk_spans, request_from, sdk_request
 from rootsignal_server import admin
-from rootsignal_server.api.app import create_app
 from rootsignal_server.cli import main as cli_main
-from rootsignal_server.config import Settings, get_settings
+from rootsignal_server.config import get_settings
 
 
 class UpstreamTimeout(Exception):
@@ -55,24 +50,6 @@ def support_agent() -> str:
 # ---------------------------------------------------------------------------
 # End to end over real HTTP, with the real SDK exporter
 # ---------------------------------------------------------------------------
-
-@pytest.fixture
-def live_server(clean_db: Engine) -> Iterator[str]:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-    app = create_app(Settings(database_url=TEST_DATABASE_URL), engine=clean_db)
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    deadline = time.monotonic() + 10
-    while not server.started:
-        assert time.monotonic() < deadline, "server did not start"
-        time.sleep(0.02)
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    thread.join(5)
-
 
 def test_sdk_to_api_end_to_end(clean_db: Engine, live_server: str) -> None:
     h = make_harness(clean_db)

@@ -6,7 +6,7 @@ Status: v0, implemented in increment 2. Base URL for local dev: `http://127.0.0.
 
 - Programs (SDK, scripts) send `Authorization: Bearer <key>`. Browsers use a **session cookie** instead (§1.1); a request with a Bearer header is always authenticated by the key, never by a cookie. `POST /v1/traces` accepts keys only (sessions never have `ingest`).
 - Every other `/v1` endpoint requires one of the two. Keys look like `rs_` + 43 URL-safe characters. Only a SHA-256 of the key is stored; the plaintext is shown once, at creation.
-- A key belongs to exactly one **org → project → environment** and has scopes from `ingest`, `read`, `triage` (change issue status) and `admin`. `admin` is reserved; no endpoint uses it yet.
+- A key belongs to exactly one **org → project → environment** and has scopes from `ingest`, `read`, `triage` (change issue status, create and edit cases), `replay` (run replays, §8) and `admin`. `admin` is reserved; no endpoint uses it yet.
 - **A key sees only its own environment.** A trace or payload from another tenant, project or environment returns **404**, never 403, so IDs can't be probed.
 - Keys are created and revoked with the CLI (no HTTP admin API until user accounts exist, Phase 2). Each action writes an `audit_events` row (as do login-link creation, session creation and session revocation):
 
@@ -46,8 +46,10 @@ Non-OTLP error bodies are JSON: `{"error": {"code": "<code>", "message": "<text>
 | 401 | `invalid_link` | Login link unknown, expired or already used | No |
 | 404 | `not_found` | Unknown **or other tenant's** resource | No |
 | 409 | `invalid_transition` | Issue status change not allowed (already in that status; `fixed_in_version` without resolving) | No |
+| 409 | `invalid_report` | Replay report posted twice, or a malformed `trace_id` | No |
 | 413 | `payload_too_large` | Body or decompressed body over the limit | No |
 | 415 | `unsupported_media_type` | Not protobuf or JSON | No |
+| 422 | `not_replayable` | Replay requested for a case without an entrypoint or input | No |
 | 422 | (FastAPI validation) | Malformed path/query parameter, e.g. a non-hex trace ID | No |
 | 429 | `rate_limited` | Per-key token bucket empty (`Retry-After`) | Yes |
 | 429 | `quota_exceeded` | Project's daily span or byte quota reached (`Retry-After` = seconds to UTC midnight) | After reset |
@@ -89,7 +91,7 @@ export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer rs_..."
 
 ### `GET /v1/traces`
 
-Newest first. Query parameters: `limit` (1–200, default 50), `cursor` (opaque, from the previous page), `status` (`unset|ok|error`), `agent_name`, `agent_version`, `since`, `until` (ISO-8601). Response: `{"items": [TraceSummary], "next_cursor": string|null}`. Keyset pagination on `(started_at, trace_id)` stays stable while new traces arrive.
+Newest first. Query parameters: `limit` (1–200, default 50), `cursor` (opaque, from the previous page), `status` (`unset|ok|error`), `agent_name`, `agent_version`, `since`, `until` (ISO-8601), `source` (`production` by default, `replay`, or `all`). Response: `{"items": [TraceSummary], "next_cursor": string|null}`. Keyset pagination on `(started_at, trace_id)` stays stable while new traces arrive.
 
 `TraceSummary` fields: `trace_id`, `root_span_id`, `service_name`, `agent_name`, `agent_version`, `prompt_version`, `conversation_id`, `status`, `source`, `started_at`, `ended_at`, `duration_ms`, `span_count`, `error_count`, `llm_call_count`, `tool_call_count`, `input_tokens`, `output_tokens`, `cost_usd` (decimal string, null if no call was priced), `unpriced_llm_call_count` (if > 0, `cost_usd` is a lower bound), `completed_at`, `completion_reason` (`root_span` | `idle_timeout`), `finding_count`. All timestamps are UTC.
 
@@ -153,10 +155,21 @@ See [REGRESSION_CASES.md](REGRESSION_CASES.md).
 
 `CaseSummary` fields: `id`, `issue_id`, `source_trace_id`, `name`, `status`, `current_version`, `entrypoint`, `replayable_recorded`, `assertion_count`, `warning_count`, `created_by`, `created_at`, `updated_at`.
 
-## 8. Operational endpoints (no auth)
+## 8. Replay runs
+
+See [REPLAY.md](REPLAY.md). Normally driven by `rootsignal replay`, which needs a key with `read`, `ingest` and `replay`. Dashboard sessions never have `replay`.
+
+| Endpoint | Scope | Purpose |
+|---|---|---|
+| `POST /v1/regression-cases/{id}/replays {purpose, mode?, match?}` | replay | Register a run for the case's current version. `purpose` is `reproduce` or `verify`, `mode` is `recorded` (default) or `live_model`, `match` is `by_args` (default) or `strict_order`. **201** `{run_id, case_id, case_version, spec}`; 422 `not_replayable` without an entrypoint or input |
+| `POST /v1/replay-runs/{id}/report {trace_id?, report, crashed?}` | replay | The child's report. With `crashed` or without a trace, the run ends as `crashed`; otherwise it waits for the trace. 409 `invalid_report` if a report was already posted or `trace_id` is malformed |
+| `GET /v1/replay-runs/{id}` | read | Run status (`running`, `awaiting_trace`, `evaluated`, `error`), verdict, summary, per-assertion `results`, the child's `report`, and `trace_id` |
+| `GET /v1/regression-cases/{id}/replays` | read | The case's runs, newest first (last 50) |
+
+## 9. Operational endpoints (no auth)
 
 `GET /healthz` → `{"status": "ok"}` (process up). `GET /readyz` → 200 if the database answers, else 503.
 
-## 9. Not yet implemented
+## 10. Not yet implemented
 
-HTTP key management and user auth (Phase 2), investigation endpoints (increment 6), issue merge/split, editing `detector_config` over HTTP, `/v1/metrics` and `/v1/logs`, OTLP/gRPC, a `google.rpc.Status` error body, and retention enforcement (the `retention_days` setting exists but no deletion job runs yet).
+HTTP key management and user auth (Phase 2), cancelling or expiring replay runs, issue merge/split, editing `detector_config` over HTTP, `/v1/metrics` and `/v1/logs`, OTLP/gRPC, a `google.rpc.Status` error body, and retention enforcement (the `retention_days` setting exists but no deletion job runs yet).

@@ -1413,6 +1413,255 @@
         "title": "PayloadOut",
         "type": "object"
       },
+      "ReplayReportBody": {
+        "properties": {
+          "crashed": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crashed"
+          },
+          "report": {
+            "additionalProperties": true,
+            "title": "Report",
+            "type": "object"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id"
+          }
+        },
+        "title": "ReplayReportBody",
+        "type": "object"
+      },
+      "ReplayRunList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayRunOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ReplayRunList",
+        "type": "object"
+      },
+      "ReplayRunOut": {
+        "properties": {
+          "case_id": {
+            "format": "uuid",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "case_version": {
+            "title": "Case Version",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evaluated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "matching": {
+            "title": "Matching",
+            "type": "string"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "report": {
+            "additionalProperties": true,
+            "title": "Report",
+            "type": "object"
+          },
+          "reported_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported At"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "id",
+          "case_id",
+          "case_version",
+          "purpose",
+          "mode",
+          "matching",
+          "status",
+          "verdict",
+          "summary",
+          "requested_by",
+          "trace_id",
+          "report",
+          "results",
+          "created_at",
+          "reported_at",
+          "evaluated_at"
+        ],
+        "title": "ReplayRunOut",
+        "type": "object"
+      },
+      "ReplayStart": {
+        "properties": {
+          "match": {
+            "default": "by_args",
+            "enum": [
+              "by_args",
+              "strict_order"
+            ],
+            "title": "Match",
+            "type": "string"
+          },
+          "mode": {
+            "default": "recorded",
+            "enum": [
+              "recorded",
+              "live_model"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "reproduce",
+              "verify"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose"
+        ],
+        "title": "ReplayStart",
+        "type": "object"
+      },
+      "ReplayStarted": {
+        "properties": {
+          "case_id": {
+            "format": "uuid",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "case_version": {
+            "title": "Case Version",
+            "type": "integer"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "title": "Spec",
+            "type": "object"
+          }
+        },
+        "required": [
+          "run_id",
+          "case_id",
+          "case_version",
+          "spec"
+        ],
+        "title": "ReplayStarted",
+        "type": "object"
+      },
       "SpanOut": {
         "properties": {
           "args_hash": {
@@ -2862,6 +3111,94 @@
         "summary": "Edit a case (creates a new version)"
       }
     },
+    "/v1/regression-cases/{case_id}/replays": {
+      "get": {
+        "operationId": "list_for_case_v1_regression_cases__case_id__replays_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayRunList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replay runs of a case, newest first"
+      },
+      "post": {
+        "operationId": "start_v1_regression_cases__case_id__replays_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplayStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayStarted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register a replay run (the runner then executes it)"
+      }
+    },
     "/v1/regression-cases/{case_id}/spec": {
       "get": {
         "operationId": "spec_v1_regression_cases__case_id__spec_get",
@@ -2919,6 +3256,96 @@
           }
         },
         "summary": "The case spec as a standalone document"
+      }
+    },
+    "/v1/replay-runs/{run_id}": {
+      "get": {
+        "operationId": "get_one_v1_replay_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "A replay run"
+      }
+    },
+    "/v1/replay-runs/{run_id}/report": {
+      "post": {
+        "operationId": "report_v1_replay_runs__run_id__report_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplayReportBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit what the replay child observed"
       }
     },
     "/v1/traces": {
@@ -3034,6 +3461,19 @@
                 }
               ],
               "title": "Until"
+            }
+          },
+          {
+            "description": "replay: traces from `rootsignal replay` runs",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "production",
+              "description": "replay: traces from `rootsignal replay` runs",
+              "pattern": "^(production|replay|all)$",
+              "title": "Source",
+              "type": "string"
             }
           }
         ],

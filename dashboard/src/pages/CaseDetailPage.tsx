@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, type CaseAssertion, type CaseDetail, type CaseEdit, type CaseSpec, type RecordedValue } from "../api/client";
+import { ReplayRuns } from "../components/ReplayRuns";
 import { Badge, Button, Card, Code, ErrorBox, Loading, Stat, type Tone } from "../components/ui";
 import { useSession } from "../lib/auth";
 import { formatTime, shortId } from "../lib/format";
@@ -11,6 +12,10 @@ const REQUIRES: Record<string, { label: string; tone: Tone; hint: string }> = {
   live_tools: { label: "live tools", tone: "amber", hint: "Replaying a recorded tool error can't make the tool succeed: needs the real tool" },
   live_model: { label: "live model", tone: "amber", hint: "Depends on what the model does: needs a live model call" },
   live: { label: "live", tone: "amber", hint: "Depends on real timing: needs live tools and model" },
+};
+
+const CASE_STATUS: Record<string, Tone> = {
+  reproduced: "red", failing: "red", passing: "green", not_reproduced: "amber",
 };
 
 function short(value: unknown, max = 80): string {
@@ -184,7 +189,7 @@ export function CaseDetailPage() {
         <Link to={`/issues/${detail.issue_id}`} className="text-sm text-sky-700 hover:underline">← Issue</Link>
         <h1 className="mt-1 flex flex-wrap items-center gap-2 text-xl font-semibold">
           {spec.name}
-          <Badge>{detail.status}</Badge>
+          <Badge tone={CASE_STATUS[detail.status] ?? "gray"}>{detail.status.replace("_", " ")}</Badge>
           <Badge>v{detail.version}{isCurrent ? "" : ` of ${detail.current_version}`}</Badge>
           {spec.quality.replayable_recorded ? <Badge tone="green">replayable</Badge> : <Badge tone="amber">needs attention</Badge>}
         </h1>
@@ -197,7 +202,7 @@ export function CaseDetailPage() {
             <Stat label="Source trace" value={<Link to={`/traces/${spec.source.trace_id}`} className="font-mono text-sky-700 hover:underline">{shortId(spec.source.trace_id)}</Link>} />
             <Stat label="Agent" value={`${spec.source.agent_name ?? "—"} ${spec.source.agent_version ?? ""}`} />
             <Stat label="Recorded" value={formatTime(spec.source.started_at)} />
-            <Stat label="Entrypoint" value={spec.entrypoint ? <Code>{spec.entrypoint}</Code> : <span className="text-amber-700">not set</span>} />
+            <Stat label="Entrypoint" value={spec.entrypoint ? <span className="break-all"><Code>{spec.entrypoint}</Code></span> : <span className="text-amber-700">not set</span>} />
             <Stat label="Input" value={spec.input.kind === "missing" ? <span className="text-amber-700">missing</span>
               : <span title={JSON.stringify(spec.input.value)}>{short(spec.input.value, 40)}{spec.input.supplied_by_user ? " (supplied)" : ""}</span>} />
             <Stat label="Created by" value={detail.created_by} />
@@ -209,9 +214,6 @@ export function CaseDetailPage() {
           )}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button onClick={() => exporting.mutate(detail.version)} disabled={exporting.isPending}>Download JSON</Button>
-            <span className="text-xs text-slate-500">
-              Replay (next increment) will run this case against your agent code, before and after a fix.
-            </span>
           </div>
           {exporting.isError && <ErrorBox error={exporting.error} />}
         </Card>
@@ -220,6 +222,10 @@ export function CaseDetailPage() {
             : <p className="text-sm text-slate-500">{isCurrent ? "Read-only: needs the 'triage' scope." : "Open the current version to edit."}</p>}
         </Card>
       </div>
+
+      <Card title="Replays">
+        <ReplayRuns caseId={detail.id} status={detail.status} />
+      </Card>
 
       <Card title={`Assertions (${spec.assertions.filter((a) => a.enabled).length} enabled)`}>
         <AssertionsTable key={detail.version} detail={detail} spec={spec} editable={editable} onSaved={refresh} />

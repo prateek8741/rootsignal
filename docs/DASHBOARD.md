@@ -20,10 +20,10 @@ The Vite dev server forwards `/v1` to the API (`ROOTSIGNAL_API` overrides the ta
 | Screen | What it shows |
 |---|---|
 | Sign in | One-time link (`/login/link#token=…`) or paste a key once; both become an httpOnly session |
-| Traces | Filter by status, agent, version and time range; finding count, errored spans, duration, spans, tokens, cost (`≥` when some model calls were unpriced); cursor paging. Separate empty states for "no traces yet" (with an SDK snippet) and "no matches" |
-| Trace | Summary, findings (click to highlight evidence spans; link to the issue), execution waterfall (tree + timeline; errors in red; "repeat #n" for identical calls; write side effects; orphans), span details (model/tokens/cost, side effect, args hash, redacted exception, attributes) with payloads fetched on demand, showing truncation and redaction state |
+| Traces | Filter by source (production by default; replays on request), status, agent, version and time range; finding count, errored spans, duration, spans, tokens, cost (`≥` when some model calls were unpriced); cursor paging. Separate empty states for "no traces yet" (with an SDK snippet) and "no matches" |
+| Trace | Summary (a `replay` badge on traces produced by `rootsignal replay`), findings (click to highlight evidence spans; link to the issue), execution waterfall (tree + timeline; errors in red; "repeat #n" for identical calls; write side effects; orphans), span details (model/tokens/cost, side effect, args hash, redacted exception, attributes) with payloads fetched on demand, showing truncation and redaction state |
 | Issues | Status tabs (open default), severity filter, sort by recency, frequency or severity; regression badge; affected versions |
-| Case | Source, entrypoint and input (editable: each edit is a new version), quality warnings, assertions with role and requirement badges (toggle to disable), recorded tool calls with fidelity flags (stubbed write tools marked), version history, Download JSON |
+| Case | Source, entrypoint and input (editable: each edit is a new version), quality warnings, assertions with role and requirement badges (toggle to disable), recorded tool calls with fidelity flags (stubbed write tools marked), **replays** (the CLI command to run next, then each run's verdict, per-assertion pass/fail/skip, what was served or stubbed, and a link to the replay trace; refreshes while a run is in progress), version history, Download JSON. Replays are started from the CLI, not the dashboard: sessions never get the `replay` scope |
 | Issue | Description, counts, first/latest/worst trace links, regression cases (create from the worst trace), resolve (with optional fixed-in version and note), ignore or reopen (disabled without `triage`), **investigation panel** (claims by kind, AI suggestions marked, evidence chips linking to spans, discarded suggestions with reasons), version breakdown, history with actors, occurrences |
 
 ## Signing in and security
@@ -40,7 +40,7 @@ Since increment 6 the dashboard **never holds an API key or any other credential
 ## Contracts and tests
 
 - **API types are generated, not hand-written.** `npm run gen:api` exports the OpenAPI document (`scripts/export_openapi.py`) and runs `openapi-typescript`. A server test (`test_openapi_sync.py`) fails if the committed schema is stale.
-- **`make test-dashboard`** runs `tsc --noEmit` and Vitest, 29 tests. Increment 6 added: link and key sign-in, sign-out, the storage guard, the investigation panel and `?span=` deep links. The increment 5 tests cover:
+- **`make test-dashboard`** runs `tsc --noEmit` and Vitest, 38 tests. Increments 7–8 added the case page, replay history and the trace source filter. Increment 6 added: link and key sign-in, sign-out, the storage guard, the investigation panel and `?span=` deep links. The increment 5 tests cover:
   - the span tree (ordering, ties, timeline maths, orphans, cycles);
   - formatting (lower-bound costs);
   - pages against a mocked API: connect flow, bad key, both empty states, filters reaching the API, evidence highlighting, triage-scope gating, the resolve request body.

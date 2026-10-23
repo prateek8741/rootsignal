@@ -230,6 +230,24 @@ export interface paths {
         patch: operations["edit_v1_regression_cases__case_id__patch"];
         trace?: never;
     };
+    "/v1/regression-cases/{case_id}/replays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Replay runs of a case, newest first */
+        get: operations["list_for_case_v1_regression_cases__case_id__replays_get"];
+        put?: never;
+        /** Register a replay run (the runner then executes it) */
+        post: operations["start_v1_regression_cases__case_id__replays_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/regression-cases/{case_id}/spec": {
         parameters: {
             query?: never;
@@ -241,6 +259,40 @@ export interface paths {
         get: operations["spec_v1_regression_cases__case_id__spec_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/replay-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A replay run */
+        get: operations["get_one_v1_replay_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/replay-runs/{run_id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit what the replay child observed */
+        post: operations["report_v1_replay_runs__run_id__report_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -796,6 +848,109 @@ export interface components {
             sha256: string;
             /** Truncated */
             truncated: boolean;
+        };
+        /** ReplayReportBody */
+        ReplayReportBody: {
+            /** Crashed */
+            crashed?: string | null;
+            /** Report */
+            report?: {
+                [key: string]: unknown;
+            };
+            /** Trace Id */
+            trace_id?: string | null;
+        };
+        /** ReplayRunList */
+        ReplayRunList: {
+            /** Items */
+            items: components["schemas"]["ReplayRunOut"][];
+        };
+        /** ReplayRunOut */
+        ReplayRunOut: {
+            /**
+             * Case Id
+             * Format: uuid
+             */
+            case_id: string;
+            /** Case Version */
+            case_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Evaluated At */
+            evaluated_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Matching */
+            matching: string;
+            /** Mode */
+            mode: string;
+            /** Purpose */
+            purpose: string;
+            /** Report */
+            report: {
+                [key: string]: unknown;
+            };
+            /** Reported At */
+            reported_at: string | null;
+            /** Requested By */
+            requested_by: string;
+            /** Results */
+            results: {
+                [key: string]: unknown;
+            }[];
+            /** Status */
+            status: string;
+            /** Summary */
+            summary: string | null;
+            /** Trace Id */
+            trace_id: string | null;
+            /** Verdict */
+            verdict: string | null;
+        };
+        /** ReplayStart */
+        ReplayStart: {
+            /**
+             * Match
+             * @default by_args
+             * @enum {string}
+             */
+            match: "by_args" | "strict_order";
+            /**
+             * Mode
+             * @default recorded
+             * @enum {string}
+             */
+            mode: "recorded" | "live_model";
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "reproduce" | "verify";
+        };
+        /** ReplayStarted */
+        ReplayStarted: {
+            /**
+             * Case Id
+             * Format: uuid
+             */
+            case_id: string;
+            /** Case Version */
+            case_version: number;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Spec */
+            spec: {
+                [key: string]: unknown;
+            };
         };
         /** SpanOut */
         SpanOut: {
@@ -1513,6 +1668,72 @@ export interface operations {
             };
         };
     };
+    list_for_case_v1_regression_cases__case_id__replays_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayRunList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_v1_regression_cases__case_id__replays_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplayStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     spec_v1_regression_cases__case_id__spec_get: {
         parameters: {
             query?: {
@@ -1548,6 +1769,72 @@ export interface operations {
             };
         };
     };
+    get_one_v1_replay_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_v1_replay_runs__run_id__report_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplayReportBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_traces_v1_traces_get: {
         parameters: {
             query?: {
@@ -1558,6 +1845,8 @@ export interface operations {
                 agent_version?: string | null;
                 since?: string | null;
                 until?: string | null;
+                /** @description replay: traces from `rootsignal replay` runs */
+                source?: string;
             };
             header?: never;
             path?: never;
