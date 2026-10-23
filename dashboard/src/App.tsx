@@ -1,17 +1,19 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { RequireConnection } from "./components/Layout";
-import { ConnectionProvider } from "./lib/connection";
-import { ConnectPage } from "./pages/ConnectPage";
+import { RequireAuth } from "./components/Layout";
+import { AuthProvider } from "./lib/auth";
 import { IssueDetailPage } from "./pages/IssueDetailPage";
 import { IssuesPage } from "./pages/IssuesPage";
+import { LinkLoginPage } from "./pages/LinkLoginPage";
+import { LoginPage } from "./pages/LoginPage";
 import { TraceDetailPage } from "./pages/TraceDetailPage";
 import { TracesPage } from "./pages/TracesPage";
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/connect" element={<ConnectPage />} />
-      <Route element={<RequireConnection />}>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/link" element={<LinkLoginPage />} />
+      <Route element={<RequireAuth />}>
         <Route path="/traces" element={<TracesPage />} />
         <Route path="/traces/:traceId" element={<TraceDetailPage />} />
         <Route path="/issues" element={<IssuesPage />} />
@@ -24,10 +26,10 @@ export function AppRoutes() {
 
 export function App() {
   return (
-    <ConnectionProvider>
+    <AuthProvider>
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>
-    </ConnectionProvider>
+    </AuthProvider>
   );
 }

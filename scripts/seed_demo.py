@@ -1,9 +1,12 @@
 """Load realistic demo traces into a running Rootsignal API for the dashboard.
 
 Creates (or reuses) org ``demo`` / project ``agents`` / environment ``development``,
-prints a dashboard key (read + triage) once, sends traces from four synthetic
-agents through the real SDK, then runs the worker until detection is done.
-No model is called: model spans are recorded with plausible token counts.
+sends traces from four synthetic agents through the real SDK, runs the worker
+until detection is done, and prints a one-time dashboard login link (read +
+triage, single use, valid 5 minutes). The demo project gets a small monthly LLM
+token budget so investigations can use a local model if the server has one
+configured. No model is called while seeding: model spans carry plausible
+token counts.
 
     uv run rootsignal-server serve            # in another terminal
     uv run python scripts/seed_demo.py [--endpoint http://127.0.0.1:8000] [--runs 40]
@@ -17,8 +20,12 @@ import random
 import time
 from datetime import timedelta
 
+from sqlalchemy import text
+
 import rootsignal as rs
 from rootsignal_server import admin
+from rootsignal_server.auth.sessions import create_login_link
+from rootsignal_server.config import get_settings
 from rootsignal_server.jobs.worker import Worker, default_handlers
 from rootsignal_server.storage.db import make_engine
 
@@ -151,6 +158,7 @@ def main() -> None:
     parser.add_argument("--endpoint", default="http://127.0.0.1:8000")
     parser.add_argument("--runs", type=int, default=40)
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--dashboard-url", default="http://127.0.0.1:5173")
     parser.add_argument("--time-scale", type=float, default=0.3,
                         help="multiplier for simulated latencies (0 = instant)")
     args = parser.parse_args()
@@ -164,8 +172,9 @@ def main() -> None:
                                      org_name="Demo Org", project_name="Agents")
         ingest = admin.create_api_key(conn, tenant, name="seed-ingest", scopes=["ingest"],
                                       actor="seed_demo")
-        dashboard = admin.create_api_key(conn, tenant, name="dashboard",
-                                         scopes=["read", "triage"], actor="seed_demo")
+        conn.execute(text("UPDATE projects SET llm_monthly_token_budget = 200000 "
+                          "WHERE id = :p AND llm_monthly_token_budget = 0"),
+                     {"p": tenant.project_id})
 
     rng = random.Random(args.seed)
     rs.init(rs.Config(api_key=ingest.plaintext, endpoint=args.endpoint,
@@ -184,7 +193,12 @@ def main() -> None:
     while worker.run_once():
         pass
     print(f"worker: {worker.stats}")
-    print(f"\nDashboard key (read + triage), shown once:\n{dashboard.plaintext}")
+    with engine.begin() as conn:
+        token = create_login_link(conn, tenant, scopes=["read", "triage"], created_by="seed_demo",
+                                  ttl=timedelta(minutes=get_settings().login_link_ttl_minutes))
+    print("\nOpen this once to sign in to the dashboard (expires in a few minutes; get a new "
+          "one with `rootsignal-server dashboard-link --org demo --project agents`):")
+    print(f"{args.dashboard_url.rstrip('/')}/login/link#token={token}")
     engine.dispose()
 
 

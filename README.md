@@ -2,7 +2,7 @@
 
 An AI agent reliability platform: **observe → detect → investigate → reproduce → fix → verify**. Working name; not trademark-checked.
 
-> **Status: Phase 1, increment 5 of 10.** SDK → authenticated OTLP ingest → worker → 8 deterministic detectors → issues with regression detection → React dashboard. No AI investigation, regression cases or replay yet. See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
+> **Status: Phase 1, increment 6 of 10.** SDK → authenticated OTLP ingest → worker → 8 deterministic detectors → issues with regression detection → evidence-backed investigations (rules, plus an optional local LLM) → React dashboard with cookie-session sign-in. No regression cases or replay yet. See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
 
 ## Layout
 
@@ -32,7 +32,8 @@ Server integration tests run against `ROOTSIGNAL_TEST_DATABASE_URL` and **drop i
 ```bash
 uv run rootsignal-server serve                     # http://127.0.0.1:8000, docs at /docs
 uv run rootsignal-server worker                    # in another terminal: runs detectors
-make seed-demo                                     # optional demo data; prints a dashboard key
+make seed-demo                                     # optional demo data; prints a one-time login link
+uv run rootsignal-server dashboard-link --org <org> --project <project>   # sign-in link for the dashboard
 make dashboard                                     # http://127.0.0.1:5173
 uv run rootsignal-server create-tenant --org acme --project support
 uv run rootsignal-server create-key --org acme --project support --name dev --scopes ingest,read
@@ -71,6 +72,6 @@ Details: [docs/TRACE_SCHEMA.md](docs/TRACE_SCHEMA.md).
 
 ## Documents
 
-[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Detectors](docs/DETECTORS.md) · [Issues](docs/ISSUES.md) · [Dashboard](docs/DASHBOARD.md) · [Cost model](docs/COST_MODEL.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
+[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Detectors](docs/DETECTORS.md) · [Issues](docs/ISSUES.md) · [Dashboard](docs/DASHBOARD.md) · [Investigations](docs/INVESTIGATIONS.md) · [Threat model](docs/THREAT_MODEL.md) · [Cost model](docs/COST_MODEL.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
 
 License: not yet chosen.

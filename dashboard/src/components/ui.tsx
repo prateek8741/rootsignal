@@ -102,8 +102,8 @@ export function ErrorBox({ error }: { error: unknown }) {
   const status = error instanceof ApiError ? error.status : null;
   return (
     <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-      <p className="font-medium">{status === 401 ? "This API key wasn't accepted (wrong, revoked or deleted)." : message}</p>
-      {status === 401 && <Link to="/connect" className="mt-1 inline-block underline">Connect with another key</Link>}
+      <p className="font-medium">{status === 401 ? message || "Your session has ended." : message}</p>
+      {status === 401 && <Link to="/login" className="mt-1 inline-block underline">Sign in again</Link>}
     </div>
   );
 }

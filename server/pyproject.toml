@@ -13,6 +13,7 @@ dependencies = [
     "opentelemetry-proto>=1.27",
     "protobuf>=5",
     "rootsignal",
+    "httpx>=0.28.1",
 ]
 
 [project.scripts]

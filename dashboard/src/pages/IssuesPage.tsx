@@ -3,20 +3,20 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api, type IssueQuery } from "../api/client";
 import { Badge, Button, EmptyState, ErrorBox, IssueStatusBadge, Loading, SeverityBadge } from "../components/ui";
 import { formatRelative } from "../lib/format";
-import { useActiveConnection } from "../lib/connection";
+import { useSession } from "../lib/auth";
 
 const STATUSES = ["open", "resolved", "ignored", "all"] as const;
 
 export function IssuesPage() {
-  const { apiKey, context } = useActiveConnection();
+  const context = useSession();
   const [params, setParams] = useSearchParams();
   const status = params.get("status") ?? "open";
   const severity = params.get("severity") ?? "";
   const sort = (params.get("sort") ?? "last_seen") as NonNullable<IssueQuery["sort"]>;
 
   const query = useInfiniteQuery({
-    queryKey: ["issues", apiKey, status, severity, sort],
-    queryFn: ({ pageParam }) => api.issues(apiKey, {
+    queryKey: ["issues", status, severity, sort],
+    queryFn: ({ pageParam }) => api.issues({
       status: status === "all" ? undefined : status, severity, sort, cursor: pageParam, limit: 50,
     }),
     initialPageParam: undefined as string | undefined,

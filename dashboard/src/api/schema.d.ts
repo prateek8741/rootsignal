@@ -4,6 +4,42 @@
  */
 
 export interface paths {
+    "/v1/auth/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign in with a one-time login link */
+        post: operations["login_with_link_v1_auth_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who is signed in */
+        get: operations["current_session_v1_auth_session_get"];
+        put?: never;
+        /** Sign in by exchanging an API key */
+        post: operations["login_with_key_v1_auth_session_post"];
+        /** Sign out (ends the session server-side) */
+        delete: operations["logout_v1_auth_session_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/context": {
         parameters: {
             query?: never;
@@ -13,6 +49,23 @@ export interface paths {
         };
         /** Who this key belongs to and what it may do (any valid key) */
         get: operations["get_context_v1_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/investigations/{investigation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An investigation with its claims */
+        get: operations["get_one_v1_investigations__investigation_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -49,6 +102,24 @@ export interface paths {
         get: operations["get_issue_v1_issues__issue_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/issues/{issue_id}/investigations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent investigations of an issue */
+        get: operations["list_for_issue_v1_issues__issue_id__investigations_get"];
+        put?: never;
+        /** Start an investigation (runs in the worker) */
+        post: operations["start_v1_issues__issue_id__investigations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -145,16 +216,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ClaimOut */
+        ClaimOut: {
+            /** Kind */
+            kind: string;
+            /** Refs */
+            refs: {
+                [key: string]: unknown;
+            }[];
+            /** Source */
+            source: string;
+            /** Statement */
+            statement: string;
+        };
         /** Context */
         Context: {
             /** Environment */
             environment: string;
             /** Key Prefix */
             key_prefix: string;
+            /** Llm Available */
+            llm_available: boolean;
             /** Org Name */
             org_name: string;
             /** Org Slug */
             org_slug: string;
+            /** Principal */
+            principal: string;
             /** Project Name */
             project_name: string;
             /** Project Slug */
@@ -208,6 +296,121 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InvestigationDetail */
+        InvestigationDetail: {
+            /** Claims */
+            claims: components["schemas"]["ClaimOut"][];
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Evidence Trace Ids */
+            evidence_trace_ids: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Issue Id
+             * Format: uuid
+             */
+            issue_id: string;
+            /** Llm Error */
+            llm_error: string | null;
+            /** Llm Input Tokens */
+            llm_input_tokens: number;
+            /** Llm Model */
+            llm_model: string | null;
+            /** Llm Output Tokens */
+            llm_output_tokens: number;
+            /** Llm Provider */
+            llm_provider: string | null;
+            /** Llm Status */
+            llm_status: string;
+            /** Rejected Claims */
+            rejected_claims: {
+                [key: string]: unknown;
+            }[];
+            /** Requested By */
+            requested_by: string;
+            /** Started At */
+            started_at: string | null;
+            /** Status */
+            status: string;
+            /** Summary */
+            summary: string | null;
+            /** Use Llm */
+            use_llm: boolean;
+        };
+        /** InvestigationList */
+        InvestigationList: {
+            /** Items */
+            items: components["schemas"]["InvestigationSummary"][];
+        };
+        /** InvestigationRequest */
+        InvestigationRequest: {
+            /**
+             * Use Llm
+             * @default false
+             */
+            use_llm: boolean;
+        };
+        /** InvestigationSummary */
+        InvestigationSummary: {
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Evidence Trace Ids */
+            evidence_trace_ids: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Issue Id
+             * Format: uuid
+             */
+            issue_id: string;
+            /** Llm Error */
+            llm_error: string | null;
+            /** Llm Input Tokens */
+            llm_input_tokens: number;
+            /** Llm Model */
+            llm_model: string | null;
+            /** Llm Output Tokens */
+            llm_output_tokens: number;
+            /** Llm Provider */
+            llm_provider: string | null;
+            /** Llm Status */
+            llm_status: string;
+            /** Rejected Claims */
+            rejected_claims: {
+                [key: string]: unknown;
+            }[];
+            /** Requested By */
+            requested_by: string;
+            /** Started At */
+            started_at: string | null;
+            /** Status */
+            status: string;
+            /** Summary */
+            summary: string | null;
+            /** Use Llm */
+            use_llm: boolean;
         };
         /** IssueDetail */
         IssueDetail: {
@@ -332,6 +535,16 @@ export interface components {
             last_seen_at: string;
             /** Occurrences */
             occurrences: number;
+        };
+        /** KeyLogin */
+        KeyLogin: {
+            /** Api Key */
+            api_key: string;
+        };
+        /** LinkLogin */
+        LinkLogin: {
+            /** Token */
+            token: string;
         };
         /** OccurrenceList */
         OccurrenceList: {
@@ -544,6 +757,110 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    login_with_link_v1_auth_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkLogin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Context"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    current_session_v1_auth_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Context"];
+                };
+            };
+        };
+    };
+    login_with_key_v1_auth_session_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeyLogin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Context"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_v1_auth_session_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     get_context_v1_context_get: {
         parameters: {
             query?: never;
@@ -560,6 +877,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Context"];
+                };
+            };
+        };
+    };
+    get_one_v1_investigations__investigation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                investigation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestigationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -620,6 +968,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IssueDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_for_issue_v1_issues__issue_id__investigations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestigationList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_v1_issues__issue_id__investigations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvestigationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestigationDetail"];
                 };
             };
             /** @description Validation Error */

@@ -55,7 +55,11 @@ REDACT_ON_INGEST = ("always", "if_not_sdk", "never")
 COMPLETION_REASONS = ("root_span", "idle_timeout")
 SEVERITIES = ("critical", "high", "medium", "low")
 ISSUE_STATUSES = ("open", "resolved", "ignored")
-ISSUE_EVENT_KINDS = ("created", "status_changed", "regressed", "straggler")
+ISSUE_EVENT_KINDS = ("created", "status_changed", "regressed", "straggler", "investigated")
+SESSION_SCOPES = ("read", "triage")
+INVESTIGATION_STATUSES = ("queued", "running", "completed", "failed")
+CLAIM_KINDS = ("observed", "hypothesis", "alternative", "missing_evidence", "next_step", "verified")
+CLAIM_SOURCES = ("rules", "llm", "replay")
 API_KEY_SCOPES = ("ingest", "read", "triage", "admin")
 
 
@@ -139,6 +143,9 @@ class Project(Base):
     # Per-detector fingerprint components overriding issues/fingerprint.py.
     issue_grouping: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    # Platform LLM tokens (input + output) per calendar month; 0 disables LLM use.
+    llm_monthly_token_budget: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0")
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -484,6 +491,132 @@ class IssueEvent(Base):
 
 
 # --------------------------------------------------------------------------
+# Dashboard sessions
+# --------------------------------------------------------------------------
+
+class DashboardSession(Base):
+    """Server-side browser session. The browser holds only an httpOnly cookie
+    with the random token; we store its SHA-256."""
+
+    __tablename__ = "dashboard_sessions"
+    __table_args__ = (
+        CheckConstraint(
+            "scopes <@ ARRAY[" + ", ".join(repr(s) for s in SESSION_SCOPES) + "]::text[]",
+            name="session_scopes"),
+        CheckConstraint("cardinality(scopes) > 0", name="has_scope"),
+        CheckConstraint("created_via IN ('login_link', 'api_key')", name="created_via"),
+        *_tenant_fks(environment=True),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    org_id: Mapped[uuid.UUID] = _org_id()
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    environment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    scopes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    # Set when created by exchanging a key: revoking that key ends the session.
+    api_key_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("api_keys.id", ondelete="CASCADE"))
+    created_via: Mapped[str] = mapped_column(Text, nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+    last_seen_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LoginLink(Base):
+    """Single-use, short-lived token that becomes a dashboard session."""
+
+    __tablename__ = "login_links"
+    __table_args__ = (
+        CheckConstraint(
+            "scopes <@ ARRAY[" + ", ".join(repr(s) for s in SESSION_SCOPES) + "]::text[]",
+            name="link_scopes"),
+        CheckConstraint("cardinality(scopes) > 0", name="has_scope"),
+        *_tenant_fks(environment=True),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    org_id: Mapped[uuid.UUID] = _org_id()
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    environment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    scopes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# --------------------------------------------------------------------------
+# Investigations
+# --------------------------------------------------------------------------
+
+class Investigation(Base):
+    __tablename__ = "investigations"
+    __table_args__ = (
+        ForeignKeyConstraint(["project_id", "issue_id"], ["issues.project_id", "issues.id"],
+                             ondelete="CASCADE"),
+        CheckConstraint(_in("status", INVESTIGATION_STATUSES), name="status"),
+        Index("ix_investigations_issue_created", "issue_id", text("created_at DESC")),
+        *_tenant_fks(environment=True),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    org_id: Mapped[uuid.UUID] = _org_id()
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    environment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    issue_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="queued")
+    requested_by: Mapped[str] = mapped_column(Text, nullable=False)
+    use_llm: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    # What happened with the LLM step: not_requested | disabled | budget_exhausted |
+    # completed | failed. The deterministic part runs regardless.
+    llm_status: Mapped[str] = mapped_column(Text, nullable=False, server_default="not_requested")
+    llm_provider: Mapped[str | None] = mapped_column(Text)
+    llm_model: Mapped[str | None] = mapped_column(Text)
+    llm_input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    llm_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    llm_error: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[str | None] = mapped_column(Text)
+    evidence_trace_ids: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("ARRAY[]::text[]"))
+    # Snapshot of exactly what the claims (and any LLM prompt) were based on.
+    evidence: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    # Claims dropped by validation, with reasons (e.g. cited span not in evidence).
+    rejected_claims: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class InvestigationClaim(Base):
+    __tablename__ = "investigation_claims"
+    __table_args__ = (
+        CheckConstraint(_in("kind", CLAIM_KINDS), name="kind"),
+        CheckConstraint(_in("source", CLAIM_SOURCES), name="source"),
+        # Only deterministic rules state observations; only replay may verify.
+        CheckConstraint("kind <> 'observed' OR source = 'rules'", name="observed_by_rules"),
+        CheckConstraint("kind <> 'verified' OR source = 'replay'", name="verified_by_replay"),
+        Index("ix_investigation_claims_investigation", "investigation_id", "position"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    investigation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    statement: Mapped[str] = mapped_column(Text, nullable=False)
+    refs: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+
+
+# --------------------------------------------------------------------------
 # Usage accounting and audit
 # --------------------------------------------------------------------------
 
@@ -501,6 +634,9 @@ class UsageDaily(Base):
     spans_accepted: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     bytes_received: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     rejected_requests: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default="0")
+    llm_input_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    llm_output_tokens: Mapped[int] = mapped_column(
         BigInteger, nullable=False, server_default="0")
 
 

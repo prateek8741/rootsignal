@@ -108,5 +108,6 @@ class _LostLock(Exception):
 
 def default_handlers() -> dict[str, Handler]:
     from rootsignal_server.detection.handler import handle_trace_completed
+    from rootsignal_server.investigation.service import make_handlers
 
-    return {"trace_completed": handle_trace_completed}
+    return {"trace_completed": handle_trace_completed, **make_handlers()}

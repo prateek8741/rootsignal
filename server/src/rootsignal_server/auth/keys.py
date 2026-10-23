@@ -13,6 +13,7 @@ import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from sqlalchemy import Connection, text
 
@@ -30,11 +31,12 @@ class TenantContext:
     environment_id: uuid.UUID
     key_id: uuid.UUID
     scopes: frozenset[str]
-    key_prefix: str = ""  # display prefix, for audit actors; never the secret
+    key_prefix: str = ""  # display label for audit actors; never the secret
+    principal: Literal["api_key", "session"] = "api_key"
 
     @property
     def actor(self) -> str:
-        return f"api_key:{self.key_prefix}" if self.key_prefix else "api_key"
+        return f"{self.principal}:{self.key_prefix}" if self.key_prefix else self.principal
 
     def allows(self, scope: str) -> bool:
         return scope in self.scopes
