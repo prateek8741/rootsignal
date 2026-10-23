@@ -18,7 +18,7 @@ lint:
 	uv run ruff check .
 
 typecheck:
-	uv run mypy sdk/python/src server/src evaluation scripts
+	uv run mypy sdk/python/src server/src examples/src evaluation scripts
 
 test-dashboard:
 	cd dashboard && npx tsc --noEmit && npx vitest run

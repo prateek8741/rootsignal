@@ -21,12 +21,13 @@ export function TracesPage() {
   // Time range is opt-in: defaulting to "24h" would show "no matches" instead of
   // onboarding to new users, and hide older traces without saying so.
   const range = params.get("range") ?? "all";
-  const filtered = Boolean(status || agent || version || range !== "all");
+  const source = params.get("source") ?? ""; // "" = production (the API default)
+  const filtered = Boolean(status || agent || version || source || range !== "all");
 
   const query = useInfiniteQuery({
-    queryKey: ["traces", status, agent, version, range],
+    queryKey: ["traces", status, agent, version, range, source],
     queryFn: ({ pageParam }) => {
-      const q: TraceQuery = { status, agent_name: agent, agent_version: version,
+      const q: TraceQuery = { status, source, agent_name: agent, agent_version: version,
         since: sinceFor(range), cursor: pageParam, limit: 50 };
       return api.traces(q);
     },
@@ -57,6 +58,15 @@ export function TracesPage() {
             <option value="error">Error</option>
             <option value="ok">OK</option>
             <option value="unset">Unset</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-slate-500">Source</span>
+          <select value={source} onChange={(e) => update("source", e.target.value)}
+            className="rounded-md border border-slate-300 px-2 py-1.5">
+            <option value="">Production</option>
+            <option value="replay">Replays</option>
+            <option value="all">All</option>
           </select>
         </label>
         <label className="flex flex-col gap-1">

@@ -286,3 +286,47 @@ class CaseDetail(CaseSummary):
 
 class CaseList(BaseModel):
     items: list[CaseSummary]
+
+
+# --- replay ---------------------------------------------------------------------
+
+class ReplayStart(BaseModel):
+    purpose: Literal["reproduce", "verify"]
+    mode: Literal["recorded", "live_model"] = "recorded"
+    match: Literal["by_args", "strict_order"] = "by_args"
+
+
+class ReplayStarted(BaseModel):
+    run_id: uuid.UUID
+    case_id: uuid.UUID
+    case_version: int
+    spec: dict[str, Any]
+
+
+class ReplayReportBody(BaseModel):
+    trace_id: str | None = None
+    report: dict[str, Any] = Field(default_factory=dict)
+    crashed: str | None = Field(default=None, max_length=2000)
+
+
+class ReplayRunOut(BaseModel):
+    id: uuid.UUID
+    case_id: uuid.UUID
+    case_version: int
+    purpose: str
+    mode: str
+    matching: str
+    status: str
+    verdict: str | None
+    summary: str | None
+    requested_by: str
+    trace_id: str | None
+    report: dict[str, Any]
+    results: list[dict[str, Any]]
+    created_at: datetime
+    reported_at: datetime | None
+    evaluated_at: datetime | None
+
+
+class ReplayRunList(BaseModel):
+    items: list[ReplayRunOut]

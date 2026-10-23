@@ -55,14 +55,20 @@ REDACT_ON_INGEST = ("always", "if_not_sdk", "never")
 COMPLETION_REASONS = ("root_span", "idle_timeout")
 SEVERITIES = ("critical", "high", "medium", "low")
 ISSUE_STATUSES = ("open", "resolved", "ignored")
-ISSUE_EVENT_KINDS = ("created", "status_changed", "regressed", "straggler", "investigated")
+ISSUE_EVENT_KINDS = ("created", "status_changed", "regressed", "straggler", "investigated",
+                     "replayed")
 SESSION_SCOPES = ("read", "triage")
 INVESTIGATION_STATUSES = ("queued", "running", "completed", "failed")
 CLAIM_KINDS = ("observed", "hypothesis", "alternative", "missing_evidence", "next_step", "verified")
 CLAIM_SOURCES = ("rules", "llm", "replay")
 # draft: created, not yet replayed. The others are set by replay (increment 8).
 CASE_STATUSES = ("draft", "reproduced", "not_reproduced", "passing", "failing", "archived")
-API_KEY_SCOPES = ("ingest", "read", "triage", "admin")
+REPLAY_PURPOSES = ("reproduce", "verify")
+REPLAY_MODES = ("recorded", "live_model")
+REPLAY_MATCHING = ("by_args", "strict_order")
+REPLAY_STATUSES = ("running", "awaiting_trace", "evaluated", "error")
+REPLAY_VERDICTS = ("failing", "passing", "broken", "diverged", "inconclusive", "crashed")
+API_KEY_SCOPES = ("ingest", "read", "triage", "replay", "admin")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -229,6 +235,8 @@ class Trace(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="unset")
     source: Mapped[str] = mapped_column(Text, nullable=False, server_default="production")
     replay_case_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    # Set from the replay child's resource attributes; verified against the run's tenant.
+    replay_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     duration_ms: Mapped[float | None] = mapped_column(Double)
@@ -670,6 +678,47 @@ class RegressionCaseVersion(Base):
     change_note: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = _created_at()
+
+
+class ReplayRun(Base):
+    """One execution of a case version against agent code, and its verdict."""
+
+    __tablename__ = "replay_runs"
+    __table_args__ = (
+        ForeignKeyConstraint(["project_id", "case_id"],
+                             ["regression_cases.project_id", "regression_cases.id"],
+                             ondelete="CASCADE"),
+        CheckConstraint(_in("purpose", REPLAY_PURPOSES), name="purpose"),
+        CheckConstraint(_in("mode", REPLAY_MODES), name="mode"),
+        CheckConstraint(_in("matching", REPLAY_MATCHING), name="matching"),
+        CheckConstraint(_in("status", REPLAY_STATUSES), name="status"),
+        CheckConstraint(f"verdict IS NULL OR {_in('verdict', REPLAY_VERDICTS)}", name="verdict"),
+        Index("ix_replay_runs_case_created", "case_id", text("created_at DESC")),
+        *_tenant_fks(environment=True),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    org_id: Mapped[uuid.UUID] = _org_id()
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    environment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    case_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    case_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    purpose: Mapped[str] = mapped_column(Text, nullable=False)
+    mode: Mapped[str] = mapped_column(Text, nullable=False)
+    matching: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="running")
+    verdict: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[str | None] = mapped_column(Text)
+    requested_by: Mapped[str] = mapped_column(Text, nullable=False)
+    trace_id: Mapped[str | None] = mapped_column(Text)
+    # What the replay child observed: served/stubbed calls, divergences, blocked network.
+    report: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    results: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    created_at: Mapped[datetime] = _created_at()
+    reported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # --------------------------------------------------------------------------

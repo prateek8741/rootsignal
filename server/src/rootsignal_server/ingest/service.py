@@ -119,7 +119,10 @@ def _trace_rows(tenant: TenantContext, spans: Sequence[NormalizedSpan]) -> list[
             first[span.trace_id] = {
                 "project_id": tenant.project_id, "trace_id": span.trace_id,
                 "org_id": tenant.org_id, "environment_id": tenant.environment_id,
-                "started_at": span.started_at, "service_name": span.service_name}
+                "started_at": span.started_at, "service_name": span.service_name,
+                # Recorded as claimed; the run's tenant is checked at evaluation time.
+                "source": "replay" if span.replay_run_id else "production",
+                "replay_run_id": span.replay_run_id}
         elif span.started_at < row["started_at"]:
             row["started_at"] = span.started_at
     return list(first.values())
@@ -218,7 +221,11 @@ def store_batch(conn: Connection, tenant: TenantContext, batch: NormalizedBatch)
     conn.execute(trace_stmt.on_conflict_do_update(
         index_elements=["project_id", "trace_id"],
         set_={"started_at": text("LEAST(traces.started_at, excluded.started_at)"),
-              "service_name": text("coalesce(traces.service_name, excluded.service_name)")}))
+              "service_name": text("coalesce(traces.service_name, excluded.service_name)"),
+              "replay_run_id": text("coalesce(traces.replay_run_id, excluded.replay_run_id)"),
+              "source": text("CASE WHEN coalesce(traces.replay_run_id, "
+                             "excluded.replay_run_id) IS NULL THEN traces.source "
+                             "ELSE 'replay' END")}))
 
     conn.execute(insert(Span).values(_span_rows(tenant, spans)).on_conflict_do_nothing(
         index_elements=["project_id", "trace_id", "span_id"]))

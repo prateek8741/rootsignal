@@ -22,6 +22,8 @@ export type Claim = Schemas["ClaimOut"];
 export type CaseSummary = Schemas["CaseSummary"];
 export type CaseDetail = Schemas["CaseDetail"];
 export type CaseList = Schemas["CaseList"];
+export type ReplayRun = Schemas["ReplayRunOut"];
+export type ReplayRunList = Schemas["ReplayRunList"];
 
 /** The regression case spec (see server/src/rootsignal_server/regression/spec.py). */
 export interface CaseAssertion {
@@ -121,6 +123,7 @@ const json = (body: unknown): RequestInit => ({
 
 export interface TraceQuery extends Query {
   status?: string;
+  source?: string;
   agent_name?: string;
   agent_version?: string;
   since?: string;
@@ -165,6 +168,7 @@ export const api = {
     request<CaseDetail>(withQuery(`/v1/regression-cases/${id}`, { version })),
   caseSpecDocument: (id: string, version: number) =>
     request<Record<string, unknown>>(withQuery(`/v1/regression-cases/${id}/spec`, { version })),
+  caseReplays: (id: string) => request<ReplayRunList>(`/v1/regression-cases/${id}/replays`),
   editCase: (id: string, change: CaseEdit) =>
     request<CaseDetail>(`/v1/regression-cases/${id}`, { ...json(change), method: "PATCH" }),
 };

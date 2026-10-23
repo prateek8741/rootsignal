@@ -12,7 +12,7 @@ Status: v1.1, written at the start of increment 6 (before any trace content reac
 | Tenant isolation | One customer must never see or affect another's data |
 | Investigation output (claims) | Engineers act on it; a false "root cause" wastes time or ships a wrong fix |
 | Platform LLM budget | Each call costs money (external providers) or compute (local) |
-| Customers' production systems | Replay (increment 8) must never cause side effects |
+| Customers' production systems | Replay must never cause side effects |
 
 ## 2. Actors and trust boundaries
 
@@ -106,9 +106,19 @@ Adversaries considered:
 | Secrets in the repo | `.env` git-ignored; secret scan before every commit (manual) | partial; **gap:** automated secret scanning in CI |
 | Provider API keys | Settings from the environment only (`SecretStr`), never logged | implemented |
 
-## 4. Replay (preview for increments 7–8)
+## 4. Replay
 
-Replay will execute customer code, on the customer's machine, never ours. Write/unknown tools are stubbed, unmatched calls fail closed, and an outbound-socket guard blocks network access. A full section lands with increment 8.
+Replay executes the customer's agent code on the customer's machine. The server never runs agent code; it only stores runs and judges replay traces. See [REPLAY.md](REPLAY.md).
+
+| Threat | Mitigation | Status |
+|---|---|---|
+| Replay repeats a real side effect (ticket, email, payment) | `write`/`unknown` tools are never executed: a recorded result, a stub or `None` is returned, and the intent is logged. `unknown` is the default side effect | implemented (`test_write_tools_never_execute`; e2e: the example agent's ticket file is never written) |
+| Agent code reaches a real system through a path the SDK doesn't intercept | Outbound-network guard in the replay child: only the Rootsignal API and explicit `--allow-host` targets. Blocked attempts make the verdict `diverged` | implemented, **limited**: it patches Python's `socket.connect` only, so native extensions, subprocesses or code that undoes the patch bypass it. A guard against accidents, not a sandbox: don't replay untrusted code |
+| A call the recording can't answer is run live or guessed | Fail closed: `ReplayDivergence` (a `BaseException`, so `except Exception` can't swallow it); live reads only with `--allow-live-reads`, and only for `read` tools | implemented (`test_unmatched_reads_fail_closed_and_cannot_be_swallowed`, e2e `test_changed_input_diverges_instead_of_guessing`) |
+| A "fix" is reported verified although the case never reproduced the bug | `passing` status needs a prior `reproduced`; a pass is otherwise recorded with a warning and the CLI exits 1 | implemented (`test_a_pass_without_prior_reproduction_proves_nothing`) |
+| Forged replay trace or report affects another tenant's case | Starting runs and posting reports needs the `replay` scope; runs are tenant-scoped (404 otherwise); a trace counts for a run only if it carries the run ID **and** belongs to the run's project and environment; a report is accepted once | implemented (`test_scopes_tenants_and_preconditions`) |
+| Replay traces pollute production issues | Traces from replay are stored with `source = replay`, never grouped into issues, and hidden from the default trace list | implemented |
+| Recorded payloads (fixtures) reach the developer's machine | Fixtures come from the same capture policy as the source run (redaction, caps, input capture off by default); fetching a spec needs `read` | by design; the spec says what was redacted or truncated |
 
 ## 5. Single-node assumptions (acceptable for the beta, recorded on purpose)
 

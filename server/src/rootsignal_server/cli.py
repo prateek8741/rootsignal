@@ -31,7 +31,8 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--project", required=True, help="project slug")
         p.add_argument("--environment", default="development")
     key.add_argument("--name", required=True)
-    key.add_argument("--scopes", default="ingest", help="comma-separated: ingest,read,admin")
+    key.add_argument("--scopes", default="ingest",
+                     help="comma-separated: ingest,read,triage,replay,admin")
 
     revoke = commands.add_parser("revoke-key", help="revoke an API key by its prefix")
     revoke.add_argument("prefix")

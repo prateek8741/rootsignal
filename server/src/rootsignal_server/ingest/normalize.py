@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -99,6 +100,7 @@ class NormalizedSpan:
     events: list[dict[str, Any]]
     dialect: str
     service_name: str | None
+    replay_run_id: str | None = None  # from the replay child's resource attributes
 
 
 @dataclass
@@ -181,6 +183,15 @@ def _redact_strings(value: Any, redactor: Redactor) -> Any:
 # ---------------------------------------------------------------------------
 # Span-level normalisation
 # ---------------------------------------------------------------------------
+
+def _uuid_or_none(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return str(uuid.UUID(value))
+    except ValueError:
+        return None
+
 
 def detect_dialect(attrs: Mapping[str, Any]) -> str:
     if "rootsignal.span.kind" in attrs:
@@ -365,6 +376,7 @@ def normalize_span(span: OtlpSpan, *, resource: Mapping[str, Any], policy: Inges
         events=events,
         dialect=dialect,
         service_name=_str(resource.get("service.name")),
+        replay_run_id=_uuid_or_none(resource.get("rootsignal.replay.run_id")),
     )
 
 
