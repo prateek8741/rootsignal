@@ -35,7 +35,9 @@ def _authenticate(engine: Engine, token: str) -> TenantContext | None:
         return authenticate(conn, token)
 
 
-def require_scope(scope: str) -> Callable[[Request], Awaitable[TenantContext]]:
+def require_scope(scope: str | None) -> Callable[[Request], Awaitable[TenantContext]]:
+    """Authenticate, then require ``scope`` (``None``: any valid key)."""
+
     async def dependency(request: Request) -> TenantContext:
         token = parse_bearer(request.headers.get("authorization"))
         unauthenticated = ApiError(401, "unauthenticated", "missing, malformed or invalid API key",
@@ -46,7 +48,7 @@ def require_scope(scope: str) -> Callable[[Request], Awaitable[TenantContext]]:
         tenant = await run_in_threadpool(_authenticate, state.engine, token)
         if tenant is None:
             raise unauthenticated
-        if not tenant.allows(scope):
+        if scope is not None and not tenant.allows(scope):
             raise ApiError(403, "forbidden", f"this API key lacks the '{scope}' scope")
         wait_s = state.rate_limiter.try_acquire(tenant.key_id)
         if wait_s > 0:

@@ -10,14 +10,27 @@ from starlette.concurrency import run_in_threadpool
 
 from rootsignal_server.api.deps import app_state, require_scope
 from rootsignal_server.api.errors import ApiError
-from rootsignal_server.api.schemas import PayloadOut, TraceDetail, TraceList
+from rootsignal_server.api.schemas import Context, PayloadOut, TraceDetail, TraceList
 from rootsignal_server.auth.keys import TenantContext
 from rootsignal_server.storage import queries
 
 router = APIRouter(prefix="/v1")
 Reader = Annotated[TenantContext, Depends(require_scope("read"))]
+AnyKey = Annotated[TenantContext, Depends(require_scope(None))]
 TraceId = Annotated[str, Path(pattern=r"^[0-9a-f]{32}$")]
 Sha256 = Annotated[str, Path(pattern=r"^[0-9a-f]{64}$")]
+
+
+@router.get("/context", response_model=Context,
+            summary="Who this key belongs to and what it may do (any valid key)")
+async def get_context(request: Request, tenant: AnyKey) -> Context:
+    engine = app_state(request).engine
+
+    def run() -> Context:
+        with engine.connect() as conn:
+            return Context.model_validate(queries.get_context(conn, tenant))
+
+    return await run_in_threadpool(run)
 
 
 @router.get("/traces", response_model=TraceList, summary="List traces, newest first")
@@ -28,12 +41,13 @@ async def list_traces(
     cursor: str | None = None,
     status: Annotated[str | None, Query(pattern="^(unset|ok|error)$")] = None,
     agent_name: str | None = None,
+    agent_version: str | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
 ) -> TraceList:
     engine = app_state(request).engine
-    filters = queries.TraceFilters(status=status, agent_name=agent_name, since=since,
-                                   until=until)
+    filters = queries.TraceFilters(status=status, agent_name=agent_name,
+                                   agent_version=agent_version, since=since, until=until)
 
     def run() -> TraceList:
         with engine.connect() as conn:

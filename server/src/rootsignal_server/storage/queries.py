@@ -21,7 +21,9 @@ _TRACE_COLUMNS = (
     "trace_id, root_span_id, service_name, agent_name, agent_version, prompt_version, "
     "conversation_id, status, source, started_at, ended_at, duration_ms, span_count, "
     "error_count, llm_call_count, tool_call_count, input_tokens, output_tokens, cost_usd, "
-    "unpriced_llm_call_count, completed_at, completion_reason"
+    "unpriced_llm_call_count, completed_at, completion_reason, "
+    "(SELECT count(*) FROM findings f WHERE f.project_id = traces.project_id "
+    " AND f.trace_id = traces.trace_id) AS finding_count"
 )
 _SPAN_COLUMNS = (
     "span_id, parent_span_id, kind, name, status, status_message, error_type, started_at, "
@@ -39,6 +41,7 @@ class InvalidCursor(ValueError):
 class TraceFilters:
     status: str | None = None
     agent_name: str | None = None
+    agent_version: str | None = None
     since: datetime | None = None
     until: datetime | None = None
 
@@ -68,6 +71,9 @@ def list_traces(conn: Connection, tenant: TenantContext, filters: TraceFilters, 
     if filters.agent_name:
         clauses.append("agent_name = :agent")
         params["agent"] = filters.agent_name
+    if filters.agent_version:
+        clauses.append("agent_version = :agent_version")
+        params["agent_version"] = filters.agent_version
     if filters.since:
         clauses.append("started_at >= :since")
         params["since"] = filters.since
@@ -118,6 +124,16 @@ def get_findings(conn: Connection, tenant: TenantContext, trace_id: str) -> list
         "WHEN 'medium' THEN 2 ELSE 3 END, f.detector, f.finding_key"),
         {"p": tenant.project_id, "e": tenant.environment_id, "t": trace_id}).mappings().all()
     return [dict(r) for r in rows]
+
+
+def get_context(conn: Connection, tenant: TenantContext) -> dict[str, Any]:
+    row = conn.execute(text(
+        "SELECT o.slug AS org_slug, o.name AS org_name, p.slug AS project_slug, "
+        "p.name AS project_name, e.name AS environment FROM environments e "
+        "JOIN projects p ON p.id = e.project_id JOIN organizations o ON o.id = p.org_id "
+        "WHERE e.id = :e AND p.id = :p"),
+        {"e": tenant.environment_id, "p": tenant.project_id}).mappings().one()
+    return {**dict(row), "scopes": sorted(tenant.scopes), "key_prefix": tenant.key_prefix}
 
 
 def get_payload(conn: Connection, tenant: TenantContext, sha256: str) -> dict[str, Any] | None:

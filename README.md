@@ -2,13 +2,14 @@
 
 An AI agent reliability platform: **observe → detect → investigate → reproduce → fix → verify**. Working name; not trademark-checked.
 
-> **Status: Phase 1, increment 4 of 10.** SDK → authenticated OTLP ingest → worker → 8 deterministic detectors → issues with lifecycle and regression detection, all through the API. No dashboard or AI investigation yet. See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
+> **Status: Phase 1, increment 5 of 10.** SDK → authenticated OTLP ingest → worker → 8 deterministic detectors → issues with regression detection → React dashboard. No AI investigation, regression cases or replay yet. See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
 
 ## Layout
 
 ```
 sdk/python/      pip package `rootsignal`: OpenTelemetry-based tracing SDK
 server/          pip package `rootsignal_server`: ingest + read API, worker, detectors, admin CLI, migrations
+dashboard/       React + TypeScript dashboard (Vite)
 evaluation/      labelled datasets and the detector evaluation script
 scripts/         dev setup (no containers), SDK overhead benchmark, storage/throughput measurement
 docs/            competitive analysis, design, schema, roadmap
@@ -16,11 +17,11 @@ docs/            competitive analysis, design, schema, roadmap
 
 ## Setup (macOS, no Docker)
 
-Requirements: [uv](https://docs.astral.sh/uv/) and PostgreSQL 16 (`brew install postgresql@16 && brew services start postgresql@16`).
+Requirements: [uv](https://docs.astral.sh/uv/), PostgreSQL 16 (`brew install postgresql@16 && brew services start postgresql@16`) and Node 24 (dashboard).
 
 ```bash
 make setup     # creates rootsignal_dev + rootsignal_test, .env, venv; migrates dev DB
-make check     # ruff + mypy (strict) + all tests
+make check     # ruff + mypy (strict) + Python tests + dashboard typecheck/tests
 make bench     # SDK hot-path overhead
 ```
 
@@ -31,6 +32,8 @@ Server integration tests run against `ROOTSIGNAL_TEST_DATABASE_URL` and **drop i
 ```bash
 uv run rootsignal-server serve                     # http://127.0.0.1:8000, docs at /docs
 uv run rootsignal-server worker                    # in another terminal: runs detectors
+make seed-demo                                     # optional demo data; prints a dashboard key
+make dashboard                                     # http://127.0.0.1:5173
 uv run rootsignal-server create-tenant --org acme --project support
 uv run rootsignal-server create-key --org acme --project support --name dev --scopes ingest,read
 export ROOTSIGNAL_API_KEY=rs_...                    # printed once by create-key
@@ -68,6 +71,6 @@ Details: [docs/TRACE_SCHEMA.md](docs/TRACE_SCHEMA.md).
 
 ## Documents
 
-[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Detectors](docs/DETECTORS.md) · [Issues](docs/ISSUES.md) · [Cost model](docs/COST_MODEL.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
+[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Detectors](docs/DETECTORS.md) · [Issues](docs/ISSUES.md) · [Dashboard](docs/DASHBOARD.md) · [Cost model](docs/COST_MODEL.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
 
 License: not yet chosen.
