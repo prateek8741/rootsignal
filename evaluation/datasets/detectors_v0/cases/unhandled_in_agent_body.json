@@ -1,0 +1,212 @@
+{
+ "resourceSpans": [
+  {
+   "resource": {
+    "attributes": [
+     {
+      "key": "telemetry.sdk.language",
+      "value": {
+       "stringValue": "python"
+      }
+     },
+     {
+      "key": "telemetry.sdk.name",
+      "value": {
+       "stringValue": "opentelemetry"
+      }
+     },
+     {
+      "key": "telemetry.sdk.version",
+      "value": {
+       "stringValue": "1.45.1"
+      }
+     },
+     {
+      "key": "service.instance.id",
+      "value": {
+       "stringValue": "1c7f95ef-237b-4477-aeaf-ad3f4f84fd59"
+      }
+     },
+     {
+      "key": "service.name",
+      "value": {
+       "stringValue": "detectors-v0"
+      }
+     },
+     {
+      "key": "deployment.environment.name",
+      "value": {
+       "stringValue": "development"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.version",
+      "value": {
+       "stringValue": "0.1.0.dev0"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.redaction",
+      "value": {
+       "stringValue": "pattern"
+      }
+     }
+    ]
+   },
+   "scopeSpans": [
+    {
+     "scope": {
+      "name": "rootsignal",
+      "version": "0.1.0.dev0"
+     },
+     "spans": [
+      {
+       "traceId": "c38af72f52e6e117c5377a73362f49f5",
+       "spanId": "f63a5df06c32761d",
+       "parentSpanId": "fe5dcc4428adea27",
+       "name": "chat llama3.1:8b",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189396518000",
+       "endTimeUnixNano": "1792745189396546000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "llm"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "llama3.1:8b"
+         }
+        },
+        {
+         "key": "gen_ai.provider.name",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "gen_ai.system",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "rootsignal.llm.call_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "gen_ai.input.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"user\", \"content\": \"[not captured]\"}]"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "200"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "40"
+         }
+        },
+        {
+         "key": "gen_ai.output.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"assistant\", \"content\": \"ok\"}]"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "c38af72f52e6e117c5377a73362f49f5",
+       "spanId": "fe5dcc4428adea27",
+       "name": "invoke_agent billing-agent",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189396499000",
+       "endTimeUnixNano": "1792745189396628000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "agent"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "invoke_agent"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "billing-agent"
+         }
+        },
+        {
+         "key": "rootsignal.capture.user_input",
+         "value": {
+          "boolValue": false
+         }
+        },
+        {
+         "key": "error.type",
+         "value": {
+          "stringValue": "KeyError"
+         }
+        }
+       ],
+       "events": [
+        {
+         "timeUnixNano": "1792745189396625000",
+         "name": "exception",
+         "attributes": [
+          {
+           "key": "exception.type",
+           "value": {
+            "stringValue": "KeyError"
+           }
+          },
+          {
+           "key": "exception.message",
+           "value": {
+            "stringValue": "'customer_id'"
+           }
+          },
+          {
+           "key": "exception.stacktrace",
+           "value": {
+            "stringValue": "Traceback (most recent call last):\n  File \"/Users/prateekkumar/Rootsignal/evaluation/datasets/detectors_v0/generate.py\", line 123, in unhandled_in_agent_body\n    raise KeyError(\"customer_id\")\nKeyError: 'customer_id'\n"
+           }
+          }
+         ]
+        }
+       ],
+       "status": {
+        "message": "'customer_id'",
+        "code": "STATUS_CODE_ERROR"
+       },
+       "flags": 256
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,237 @@
+{
+ "resourceSpans": [
+  {
+   "resource": {
+    "attributes": [
+     {
+      "key": "telemetry.sdk.language",
+      "value": {
+       "stringValue": "python"
+      }
+     },
+     {
+      "key": "telemetry.sdk.name",
+      "value": {
+       "stringValue": "opentelemetry"
+      }
+     },
+     {
+      "key": "telemetry.sdk.version",
+      "value": {
+       "stringValue": "1.45.1"
+      }
+     },
+     {
+      "key": "service.instance.id",
+      "value": {
+       "stringValue": "1c7f95ef-237b-4477-aeaf-ad3f4f84fd59"
+      }
+     },
+     {
+      "key": "service.name",
+      "value": {
+       "stringValue": "detectors-v0"
+      }
+     },
+     {
+      "key": "deployment.environment.name",
+      "value": {
+       "stringValue": "development"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.version",
+      "value": {
+       "stringValue": "0.1.0.dev0"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.redaction",
+      "value": {
+       "stringValue": "pattern"
+      }
+     }
+    ]
+   },
+   "scopeSpans": [
+    {
+     "scope": {
+      "name": "rootsignal",
+      "version": "0.1.0.dev0"
+     },
+     "spans": [
+      {
+       "traceId": "418acd5cad6022afeafabdee483b9dbb",
+       "spanId": "26c7790625974b99",
+       "parentSpanId": "ac0e27bbdff40bc7",
+       "name": "chat llama3.1:8b",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189407769000",
+       "endTimeUnixNano": "1792745189407786000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "llm"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "llama3.1:8b"
+         }
+        },
+        {
+         "key": "gen_ai.provider.name",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "gen_ai.system",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "rootsignal.llm.call_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "gen_ai.input.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"user\", \"content\": \"[not captured]\"}]"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "200"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "40"
+         }
+        },
+        {
+         "key": "gen_ai.output.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"assistant\", \"content\": \"ok\"}]"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "418acd5cad6022afeafabdee483b9dbb",
+       "spanId": "172b42c2a1499ba7",
+       "parentSpanId": "ac0e27bbdff40bc7",
+       "name": "execute_tool export_csv",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189407799000",
+       "endTimeUnixNano": "1792745189407873000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "tool"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "export_csv"
+         }
+        },
+        {
+         "key": "rootsignal.tool.side_effect",
+         "value": {
+          "stringValue": "write"
+         }
+        },
+        {
+         "key": "rootsignal.tool.args_hash",
+         "value": {
+          "stringValue": "c930ca0ad9e828e0"
+         }
+        },
+        {
+         "key": "rootsignal.tool.call_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "rootsignal.tool.repeat_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.arguments",
+         "value": {
+          "stringValue": "{\"id\": 1}"
+         }
+        },
+        {
+         "key": "error.type",
+         "value": {
+          "stringValue": "OSError"
+         }
+        }
+       ],
+       "events": [
+        {
+         "timeUnixNano": "1792745189407870000",
+         "name": "exception",
+         "attributes": [
+          {
+           "key": "exception.type",
+           "value": {
+            "stringValue": "OSError"
+           }
+          },
+          {
+           "key": "exception.message",
+           "value": {
+            "stringValue": "disk full"
+           }
+          },
+          {
+           "key": "exception.stacktrace",
+           "value": {
+            "stringValue": "Traceback (most recent call last):\n  File \"/Users/prateekkumar/Rootsignal/evaluation/datasets/detectors_v0/generate.py\", line 105, in failing_tool\n    raise exc\nOSError: disk full\n"
+           }
+          }
+         ]
+        }
+       ],
+       "status": {
+        "message": "disk full",
+        "code": "STATUS_CODE_ERROR"
+       },
+       "flags": 256
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

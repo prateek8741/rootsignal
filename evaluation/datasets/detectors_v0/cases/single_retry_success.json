@@ -1,0 +1,340 @@
+{
+ "resourceSpans": [
+  {
+   "resource": {
+    "attributes": [
+     {
+      "key": "telemetry.sdk.language",
+      "value": {
+       "stringValue": "python"
+      }
+     },
+     {
+      "key": "telemetry.sdk.name",
+      "value": {
+       "stringValue": "opentelemetry"
+      }
+     },
+     {
+      "key": "telemetry.sdk.version",
+      "value": {
+       "stringValue": "1.45.1"
+      }
+     },
+     {
+      "key": "service.instance.id",
+      "value": {
+       "stringValue": "1c7f95ef-237b-4477-aeaf-ad3f4f84fd59"
+      }
+     },
+     {
+      "key": "service.name",
+      "value": {
+       "stringValue": "detectors-v0"
+      }
+     },
+     {
+      "key": "deployment.environment.name",
+      "value": {
+       "stringValue": "development"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.version",
+      "value": {
+       "stringValue": "0.1.0.dev0"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.redaction",
+      "value": {
+       "stringValue": "pattern"
+      }
+     }
+    ]
+   },
+   "scopeSpans": [
+    {
+     "scope": {
+      "name": "rootsignal",
+      "version": "0.1.0.dev0"
+     },
+     "spans": [
+      {
+       "traceId": "cd1c0a248431ea450989635cc3b09797",
+       "spanId": "af98652db4f35a3b",
+       "parentSpanId": "2ad041fa24b724cc",
+       "name": "chat llama3.1:8b",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189413672000",
+       "endTimeUnixNano": "1792745189413691000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "llm"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "llama3.1:8b"
+         }
+        },
+        {
+         "key": "gen_ai.provider.name",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "gen_ai.system",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "rootsignal.llm.call_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "gen_ai.input.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"user\", \"content\": \"[not captured]\"}]"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "200"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "40"
+         }
+        },
+        {
+         "key": "gen_ai.output.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"assistant\", \"content\": \"ok\"}]"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "cd1c0a248431ea450989635cc3b09797",
+       "spanId": "ebb1764ab12c07c1",
+       "parentSpanId": "2ad041fa24b724cc",
+       "name": "execute_tool sync_crm",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189413709000",
+       "endTimeUnixNano": "1792745189413837000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "tool"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "sync_crm"
+         }
+        },
+        {
+         "key": "rootsignal.tool.side_effect",
+         "value": {
+          "stringValue": "read"
+         }
+        },
+        {
+         "key": "rootsignal.tool.args_hash",
+         "value": {
+          "stringValue": "305e01d4337f790b"
+         }
+        },
+        {
+         "key": "rootsignal.tool.call_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "rootsignal.tool.repeat_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.arguments",
+         "value": {
+          "stringValue": "{\"record\": \"r-9\"}"
+         }
+        },
+        {
+         "key": "error.type",
+         "value": {
+          "stringValue": "ConnectionError"
+         }
+        }
+       ],
+       "events": [
+        {
+         "timeUnixNano": "1792745189413833000",
+         "name": "exception",
+         "attributes": [
+          {
+           "key": "exception.type",
+           "value": {
+            "stringValue": "ConnectionError"
+           }
+          },
+          {
+           "key": "exception.message",
+           "value": {
+            "stringValue": "connection reset"
+           }
+          },
+          {
+           "key": "exception.stacktrace",
+           "value": {
+            "stringValue": "Traceback (most recent call last):\n  File \"/Users/prateekkumar/Rootsignal/sdk/python/src/rootsignal/tracing.py\", line 514, in wrapper\n    result = func(*args, **kwargs)\n  File \"/Users/prateekkumar/Rootsignal/evaluation/datasets/detectors_v0/generate.py\", line 265, in sync_crm\n    raise ConnectionError(\"connection reset\")\nConnectionError: connection reset\n"
+           }
+          }
+         ]
+        }
+       ],
+       "status": {
+        "message": "connection reset",
+        "code": "STATUS_CODE_ERROR"
+       },
+       "flags": 256
+      },
+      {
+       "traceId": "cd1c0a248431ea450989635cc3b09797",
+       "spanId": "ab6c0525a92e0206",
+       "parentSpanId": "2ad041fa24b724cc",
+       "name": "execute_tool sync_crm",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189413856000",
+       "endTimeUnixNano": "1792745189413873000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "tool"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "sync_crm"
+         }
+        },
+        {
+         "key": "rootsignal.tool.side_effect",
+         "value": {
+          "stringValue": "read"
+         }
+        },
+        {
+         "key": "rootsignal.tool.args_hash",
+         "value": {
+          "stringValue": "305e01d4337f790b"
+         }
+        },
+        {
+         "key": "rootsignal.tool.call_index",
+         "value": {
+          "intValue": "1"
+         }
+        },
+        {
+         "key": "rootsignal.tool.repeat_index",
+         "value": {
+          "intValue": "1"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.arguments",
+         "value": {
+          "stringValue": "{\"record\": \"r-9\"}"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.result",
+         "value": {
+          "stringValue": "ok"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "cd1c0a248431ea450989635cc3b09797",
+       "spanId": "2ad041fa24b724cc",
+       "name": "invoke_agent crm-agent",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189413660000",
+       "endTimeUnixNano": "1792745189413876000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "agent"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "invoke_agent"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "crm-agent"
+         }
+        },
+        {
+         "key": "rootsignal.capture.user_input",
+         "value": {
+          "boolValue": false
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

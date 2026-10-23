@@ -1,0 +1,250 @@
+{
+ "resourceSpans": [
+  {
+   "resource": {
+    "attributes": [
+     {
+      "key": "telemetry.sdk.language",
+      "value": {
+       "stringValue": "python"
+      }
+     },
+     {
+      "key": "telemetry.sdk.name",
+      "value": {
+       "stringValue": "opentelemetry"
+      }
+     },
+     {
+      "key": "telemetry.sdk.version",
+      "value": {
+       "stringValue": "1.45.1"
+      }
+     },
+     {
+      "key": "service.instance.id",
+      "value": {
+       "stringValue": "1c7f95ef-237b-4477-aeaf-ad3f4f84fd59"
+      }
+     },
+     {
+      "key": "service.name",
+      "value": {
+       "stringValue": "detectors-v0"
+      }
+     },
+     {
+      "key": "deployment.environment.name",
+      "value": {
+       "stringValue": "development"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.version",
+      "value": {
+       "stringValue": "0.1.0.dev0"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.redaction",
+      "value": {
+       "stringValue": "pattern"
+      }
+     }
+    ]
+   },
+   "scopeSpans": [
+    {
+     "scope": {
+      "name": "rootsignal",
+      "version": "0.1.0.dev0"
+     },
+     "spans": [
+      {
+       "traceId": "0047a21b60ee064e59f9f62265980fed",
+       "spanId": "f1ae511909f8573e",
+       "parentSpanId": "46582631d4fda8ca",
+       "name": "chat llama3.1:8b",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189411941000",
+       "endTimeUnixNano": "1792745189411964000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "llm"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "llama3.1:8b"
+         }
+        },
+        {
+         "key": "gen_ai.provider.name",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "gen_ai.system",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "rootsignal.llm.call_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "gen_ai.input.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"user\", \"content\": \"[not captured]\"}]"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "200"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "40"
+         }
+        },
+        {
+         "key": "gen_ai.output.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"assistant\", \"content\": \"ok\"}]"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "0047a21b60ee064e59f9f62265980fed",
+       "spanId": "7e656ee22190c429",
+       "parentSpanId": "46582631d4fda8ca",
+       "name": "chat llama3.1:8b",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189411979000",
+       "endTimeUnixNano": "1792745189411993000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "llm"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "llama3.1:8b"
+         }
+        },
+        {
+         "key": "gen_ai.provider.name",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "gen_ai.system",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "rootsignal.llm.call_index",
+         "value": {
+          "intValue": "1"
+         }
+        },
+        {
+         "key": "gen_ai.input.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"user\", \"content\": \"[not captured]\"}]"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "200"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "40"
+         }
+        },
+        {
+         "key": "gen_ai.output.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"assistant\", \"content\": \"ok\"}]"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "0047a21b60ee064e59f9f62265980fed",
+       "spanId": "46582631d4fda8ca",
+       "name": "invoke_agent support-agent",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189411925000",
+       "endTimeUnixNano": "1792745189411997000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "agent"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "invoke_agent"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "support-agent"
+         }
+        },
+        {
+         "key": "rootsignal.capture.user_input",
+         "value": {
+          "boolValue": false
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -66,11 +66,11 @@ export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer rs_..."
 
 Newest first. Query parameters: `limit` (1–200, default 50), `cursor` (opaque, from the previous page), `status` (`unset|ok|error`), `agent_name`, `since`, `until` (ISO-8601). Response: `{"items": [TraceSummary], "next_cursor": string|null}`. Keyset pagination on `(started_at, trace_id)` stays stable while new traces arrive.
 
-`TraceSummary` fields: `trace_id`, `root_span_id`, `service_name`, `agent_name`, `agent_version`, `prompt_version`, `conversation_id`, `status`, `source`, `started_at`, `ended_at`, `duration_ms`, `span_count`, `error_count`, `llm_call_count`, `tool_call_count`, `input_tokens`, `output_tokens`, `cost_usd` (decimal string, null if no call was priced), `unpriced_llm_call_count` (if > 0, `cost_usd` is a lower bound), `completed_at`. All timestamps are UTC.
+`TraceSummary` fields: `trace_id`, `root_span_id`, `service_name`, `agent_name`, `agent_version`, `prompt_version`, `conversation_id`, `status`, `source`, `started_at`, `ended_at`, `duration_ms`, `span_count`, `error_count`, `llm_call_count`, `tool_call_count`, `input_tokens`, `output_tokens`, `cost_usd` (decimal string, null if no call was priced), `unpriced_llm_call_count` (if > 0, `cost_usd` is a lower bound), `completed_at`, `completion_reason` (`root_span` | `idle_timeout`). All timestamps are UTC.
 
 ### `GET /v1/traces/{trace_id}`
 
-`trace_id` = 32 lowercase hex. Response `{"trace": TraceSummary, "spans": [Span]}`, spans ordered by start time. Each `Span` has the canonical columns from [TRACE_SCHEMA.md §5.2](TRACE_SCHEMA.md), including `input_payload_hash` / `output_payload_hash` but not the bodies.
+`trace_id` = 32 lowercase hex. Response `{"trace": TraceSummary, "spans": [Span], "findings": [Finding]}`, spans ordered by start time, findings by severity. `Finding`: `id`, `detector`, `detector_version`, `finding_key`, `severity`, `title`, `summary`, `evidence_span_ids` (always IDs of spans in this trace), `facts`, `tool_name`, `error_type`, `created_at`, `updated_at`. See [DETECTORS.md](DETECTORS.md). Each `Span` has the canonical columns from [TRACE_SCHEMA.md §5.2](TRACE_SCHEMA.md), including `input_payload_hash` / `output_payload_hash` but not the bodies.
 
 ### `GET /v1/payloads/{sha256}`
 
@@ -82,4 +82,4 @@ Returns `{sha256, body, byte_size, truncated, content_type, redaction_state}`, b
 
 ## 6. Not yet implemented
 
-HTTP key management and user auth (Phase 2), issue and investigation endpoints (increments 4–6), `/v1/metrics` and `/v1/logs`, OTLP/gRPC, a `google.rpc.Status` error body, and retention enforcement (the `retention_days` setting exists but no deletion job runs yet).
+HTTP key management and user auth (Phase 2), finding search and issue/investigation endpoints (increments 4–6), editing `detector_config` over HTTP, `/v1/metrics` and `/v1/logs`, OTLP/gRPC, a `google.rpc.Status` error body, and retention enforcement (the `retention_days` setting exists but no deletion job runs yet).

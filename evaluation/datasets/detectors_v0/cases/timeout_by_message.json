@@ -1,0 +1,273 @@
+{
+ "resourceSpans": [
+  {
+   "resource": {
+    "attributes": [
+     {
+      "key": "telemetry.sdk.language",
+      "value": {
+       "stringValue": "python"
+      }
+     },
+     {
+      "key": "telemetry.sdk.name",
+      "value": {
+       "stringValue": "opentelemetry"
+      }
+     },
+     {
+      "key": "telemetry.sdk.version",
+      "value": {
+       "stringValue": "1.45.1"
+      }
+     },
+     {
+      "key": "service.instance.id",
+      "value": {
+       "stringValue": "1c7f95ef-237b-4477-aeaf-ad3f4f84fd59"
+      }
+     },
+     {
+      "key": "service.name",
+      "value": {
+       "stringValue": "detectors-v0"
+      }
+     },
+     {
+      "key": "deployment.environment.name",
+      "value": {
+       "stringValue": "development"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.version",
+      "value": {
+       "stringValue": "0.1.0.dev0"
+      }
+     },
+     {
+      "key": "rootsignal.sdk.redaction",
+      "value": {
+       "stringValue": "pattern"
+      }
+     }
+    ]
+   },
+   "scopeSpans": [
+    {
+     "scope": {
+      "name": "rootsignal",
+      "version": "0.1.0.dev0"
+     },
+     "spans": [
+      {
+       "traceId": "a6ce336ff77db831327c22bda06ddd0a",
+       "spanId": "661b985f230f501c",
+       "parentSpanId": "34eabb1bd95dc3c3",
+       "name": "chat llama3.1:8b",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189400092000",
+       "endTimeUnixNano": "1792745189400109000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "llm"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "llama3.1:8b"
+         }
+        },
+        {
+         "key": "gen_ai.provider.name",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "gen_ai.system",
+         "value": {
+          "stringValue": "ollama"
+         }
+        },
+        {
+         "key": "rootsignal.llm.call_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "gen_ai.input.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"user\", \"content\": \"[not captured]\"}]"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "200"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "40"
+         }
+        },
+        {
+         "key": "gen_ai.output.messages",
+         "value": {
+          "stringValue": "[{\"role\": \"assistant\", \"content\": \"ok\"}]"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "a6ce336ff77db831327c22bda06ddd0a",
+       "spanId": "9ee1cd9e06d21dd5",
+       "parentSpanId": "34eabb1bd95dc3c3",
+       "name": "execute_tool query_db",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189400121000",
+       "endTimeUnixNano": "1792745189400185000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "tool"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "query_db"
+         }
+        },
+        {
+         "key": "rootsignal.tool.side_effect",
+         "value": {
+          "stringValue": "read"
+         }
+        },
+        {
+         "key": "rootsignal.tool.args_hash",
+         "value": {
+          "stringValue": "ea24570701b55bf3"
+         }
+        },
+        {
+         "key": "rootsignal.tool.call_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "rootsignal.tool.repeat_index",
+         "value": {
+          "intValue": "0"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.arguments",
+         "value": {
+          "stringValue": "{\"id\": 1}"
+         }
+        },
+        {
+         "key": "error.type",
+         "value": {
+          "stringValue": "RuntimeError"
+         }
+        }
+       ],
+       "events": [
+        {
+         "timeUnixNano": "1792745189400183000",
+         "name": "exception",
+         "attributes": [
+          {
+           "key": "exception.type",
+           "value": {
+            "stringValue": "RuntimeError"
+           }
+          },
+          {
+           "key": "exception.message",
+           "value": {
+            "stringValue": "request timed out after 30s"
+           }
+          },
+          {
+           "key": "exception.stacktrace",
+           "value": {
+            "stringValue": "Traceback (most recent call last):\n  File \"/Users/prateekkumar/Rootsignal/evaluation/datasets/detectors_v0/generate.py\", line 105, in failing_tool\n    raise exc\nRuntimeError: request timed out after 30s\n"
+           }
+          }
+         ]
+        }
+       ],
+       "status": {
+        "message": "request timed out after 30s",
+        "code": "STATUS_CODE_ERROR"
+       },
+       "flags": 256
+      },
+      {
+       "traceId": "a6ce336ff77db831327c22bda06ddd0a",
+       "spanId": "34eabb1bd95dc3c3",
+       "name": "invoke_agent support-agent",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1792745189400081000",
+       "endTimeUnixNano": "1792745189400189000",
+       "attributes": [
+        {
+         "key": "rootsignal.span.kind",
+         "value": {
+          "stringValue": "agent"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "invoke_agent"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "support-agent"
+         }
+        },
+        {
+         "key": "rootsignal.capture.user_input",
+         "value": {
+          "boolValue": false
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

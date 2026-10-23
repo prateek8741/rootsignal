@@ -226,6 +226,20 @@ def _payload(value: Any, *, truncated_by_sdk: bool, redaction_state: str, apply_
                              content_type, state)  # type: ignore[arg-type]
 
 
+def derive_args_hash(tool_name: str, arguments: NormalizedPayload) -> str:
+    """Fallback for SDKs that don't send ``rootsignal.tool.args_hash``.
+
+    Hashes the stored (possibly redacted) argument text, canonicalised when it
+    is JSON. It is stable within a trace, which is all the repeat and retry
+    detectors need, but differs from the SDK's raw-argument hash.
+    """
+    text = arguments.body
+    if arguments.content_type == "json":
+        text = json.dumps(json.loads(text), sort_keys=True, separators=(",", ":"))
+    material = f"{tool_name}\x00{text}".encode()
+    return hashlib.sha256(material).hexdigest()[:16]
+
+
 def _bound_attributes(attrs: dict[str, Any], policy: IngestPolicy) -> dict[str, Any]:
     out: dict[str, Any] = {}
     used = 0
@@ -314,6 +328,11 @@ def normalize_span(span: OtlpSpan, *, resource: Mapping[str, Any], policy: Inges
                                    attrs.get("gen_ai.usage.completion_tokens")))
     side_effect = attrs.get("rootsignal.tool.side_effect")
     is_tool = kind in ("tool", "mcp")
+    tool_name = _str(attrs.get("gen_ai.tool.name")) if is_tool else None
+    args_hash = _str(attrs.get("rootsignal.tool.args_hash"))
+    if is_tool and args_hash is None and payloads[0] is not None:
+        args_hash = derive_args_hash(tool_name or span.name, payloads[0])
+        attrs["rootsignal.server.args_hash_derived"] = True
 
     return NormalizedSpan(
         trace_id=span.trace_id.hex(),
@@ -334,10 +353,10 @@ def normalize_span(span: OtlpSpan, *, resource: Mapping[str, Any], policy: Inges
         output_tokens=output_tokens,
         cost_usd=(_cost(attrs, provider, model, input_tokens, output_tokens, policy.prices)
                   if kind == "llm" else None),
-        tool_name=_str(attrs.get("gen_ai.tool.name")) if is_tool else None,
+        tool_name=tool_name,
         side_effect=(side_effect if side_effect in _SIDE_EFFECTS else "unknown") if is_tool
         else None,
-        args_hash=_str(attrs.get("rootsignal.tool.args_hash")),
+        args_hash=args_hash,
         call_index=_int(attrs.get("rootsignal.tool.call_index")),
         repeat_index=_int(attrs.get("rootsignal.tool.repeat_index")),
         input_payload=payloads[0],

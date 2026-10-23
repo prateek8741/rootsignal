@@ -1,0 +1,266 @@
+{
+  "unhandled_from_tool": {
+    "expected": [
+      "tool_error",
+      "unhandled_exception"
+    ],
+    "category": "positive",
+    "description": "Tool raises ValueError; the agent doesn't catch it.",
+    "note": ""
+  },
+  "unhandled_in_agent_body": {
+    "expected": [
+      "unhandled_exception"
+    ],
+    "category": "positive",
+    "description": "Agent code raises KeyError outside any tool.",
+    "note": ""
+  },
+  "nested_agents_exception": {
+    "expected": [
+      "unhandled_exception"
+    ],
+    "category": "positive",
+    "description": "Sub-agent raises; the error escapes both agents.",
+    "note": ""
+  },
+  "tool_error_handled": {
+    "expected": [
+      "tool_error"
+    ],
+    "category": "positive",
+    "description": "Write tool fails with PermissionError; the agent carries on.",
+    "note": ""
+  },
+  "tool_soft_error": {
+    "expected": [
+      "tool_error"
+    ],
+    "category": "positive",
+    "description": "Tool returns an error object and marks the span via record_error.",
+    "note": ""
+  },
+  "timeout_tool": {
+    "expected": [
+      "timeout"
+    ],
+    "category": "positive",
+    "description": "Tool raises TimeoutError.",
+    "note": ""
+  },
+  "timeout_llm": {
+    "expected": [
+      "timeout"
+    ],
+    "category": "positive",
+    "description": "Model call times out once.",
+    "note": ""
+  },
+  "timeout_by_message": {
+    "expected": [
+      "timeout"
+    ],
+    "category": "positive",
+    "description": "RuntimeError whose message says the request timed out.",
+    "note": ""
+  },
+  "repeated_empty_search": {
+    "expected": [
+      "repeated_tool_call"
+    ],
+    "category": "positive",
+    "description": "Agent searches the same query 4 times; nothing fails, it just loops.",
+    "note": ""
+  },
+  "retry_loop_until_step_limit": {
+    "expected": [
+      "excessive_retries",
+      "repeated_tool_call",
+      "step_limit_reached",
+      "timeout"
+    ],
+    "category": "positive",
+    "description": "The slice's seeded bug: identical failing lookup until max_steps, then claims success.",
+    "note": "The false success claim is semantic; no deterministic detector covers it."
+  },
+  "retry_then_success": {
+    "expected": [
+      "excessive_retries",
+      "repeated_tool_call",
+      "tool_error"
+    ],
+    "category": "positive",
+    "description": "Two identical failed attempts, third succeeds.",
+    "note": ""
+  },
+  "repeated_write": {
+    "expected": [
+      "repeated_tool_call"
+    ],
+    "category": "positive",
+    "description": "create_ticket (write) called 3 times with identical arguments.",
+    "note": ""
+  },
+  "step_limit_no_tools": {
+    "expected": [
+      "step_limit_reached"
+    ],
+    "category": "positive",
+    "description": "Agent spends all 3 steps on model calls.",
+    "note": ""
+  },
+  "token_budget_trace": {
+    "expected": [
+      "token_budget_exceeded"
+    ],
+    "category": "positive",
+    "description": "Three calls totalling 150k tokens.",
+    "note": ""
+  },
+  "token_budget_call": {
+    "expected": [
+      "token_budget_exceeded"
+    ],
+    "category": "positive",
+    "description": "One 42k-token call.",
+    "note": ""
+  },
+  "latency_trace": {
+    "expected": [
+      "high_latency"
+    ],
+    "category": "positive",
+    "description": "Whole run takes 90 s (spread over two model calls).",
+    "note": ""
+  },
+  "latency_tool": {
+    "expected": [
+      "high_latency"
+    ],
+    "category": "positive",
+    "description": "One tool call takes 45 s.",
+    "note": ""
+  },
+  "llm_retries": {
+    "expected": [
+      "excessive_retries"
+    ],
+    "category": "positive",
+    "description": "Model call rate-limited three times in a row, then succeeds.",
+    "note": ""
+  },
+  "gen_ai_dialect_loop": {
+    "expected": [
+      "repeated_tool_call"
+    ],
+    "category": "positive",
+    "description": "Non-Rootsignal GenAI spans: same lookup 3 times; no SDK args hash.",
+    "note": ""
+  },
+  "rootless_tool_error": {
+    "expected": [
+      "tool_error"
+    ],
+    "category": "positive",
+    "description": "Root span lost (e.g. process killed); a write tool failed.",
+    "note": ""
+  },
+  "happy_path": {
+    "expected": [],
+    "category": "negative",
+    "description": "Model, read tool, model.",
+    "note": ""
+  },
+  "happy_rag": {
+    "expected": [],
+    "category": "negative",
+    "description": "Retrieval, search, two model calls.",
+    "note": ""
+  },
+  "pagination": {
+    "expected": [],
+    "category": "negative",
+    "description": "Same tool, 4 different pages.",
+    "note": ""
+  },
+  "twice_identical": {
+    "expected": [],
+    "category": "negative",
+    "description": "Identical search twice (below threshold).",
+    "note": ""
+  },
+  "under_step_limit": {
+    "expected": [],
+    "category": "negative",
+    "description": "4 of 5 allowed steps.",
+    "note": ""
+  },
+  "moderate_tokens": {
+    "expected": [],
+    "category": "negative",
+    "description": "20k tokens in one call.",
+    "note": ""
+  },
+  "caught_in_agent_body": {
+    "expected": [],
+    "category": "negative",
+    "description": "Exception raised and caught inside agent code, no span fails.",
+    "note": ""
+  },
+  "two_tools_twice_each": {
+    "expected": [],
+    "category": "negative",
+    "description": "Two different tools, each called twice.",
+    "note": ""
+  },
+  "latency_under_threshold": {
+    "expected": [],
+    "category": "negative",
+    "description": "Run takes 59 s.",
+    "note": ""
+  },
+  "single_retry_success": {
+    "expected": [
+      "tool_error"
+    ],
+    "category": "negative",
+    "description": "One failure, one successful retry: tool_error yes, excessive_retries no.",
+    "note": ""
+  },
+  "polling_status": {
+    "expected": [],
+    "category": "hard",
+    "description": "Agent polls a job status 5 times by design; nothing is wrong.",
+    "note": "Expected false positive for repeated_tool_call."
+  },
+  "cached_config_reads": {
+    "expected": [],
+    "category": "hard",
+    "description": "Cheap config read repeated 3 times; harmless.",
+    "note": "Expected false positive for repeated_tool_call."
+  },
+  "timeout_word_not_timeout": {
+    "expected": [
+      "tool_error"
+    ],
+    "category": "hard",
+    "description": "Validation error mentioning 'timeout_seconds' is not a timeout.",
+    "note": ""
+  },
+  "false_completion_after_error": {
+    "expected": [
+      "tool_error"
+    ],
+    "category": "hard",
+    "description": "Refund fails but the agent tells the user it succeeded.",
+    "note": "Only the tool error is deterministically detectable; the false claim needs a semantic signal (Phase 2)."
+  },
+  "timeout_then_fallback": {
+    "expected": [
+      "timeout"
+    ],
+    "category": "hard",
+    "description": "Primary search times out, fallback succeeds; still worth knowing.",
+    "note": ""
+  }
+}

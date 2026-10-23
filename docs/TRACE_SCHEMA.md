@@ -167,6 +167,12 @@ Kind mapping for other dialects (implemented in increment 2; OpenInference/OpenL
 
 Durable queue: `kind`, `payload` (JSONB), `status ∈ {queued, running, done, failed, dead}`, `priority`, `attempts`/`max_attempts`, `run_after`, `locked_at`/`locked_by`, `dedupe_key` (unique among `queued`/`running` jobs only). `org_id`/`project_id` are both set or both NULL (system jobs).
 
+### 5.7 `findings` (migration `0003`)
+
+One row per detector hit on a trace, unique on `(project_id, trace_id, detector, finding_key)`: `severity`, `title`, `summary`, `evidence_span_ids`, `facts` (JSONB), `detector_version`, plus `agent_name`, `agent_version`, `tool_name` and `error_type` for issue fingerprints (increment 4). It cascades with its trace. `traces.completion_reason ∈ {root_span, idle_timeout}`, and `projects.detector_config` holds per-project detector overrides. See [DETECTORS.md](DETECTORS.md).
+
+Tool spans without `rootsignal.tool.args_hash` (non-Rootsignal SDKs) get one derived at ingest from the arguments payload, flagged by `rootsignal.server.args_hash_derived = true`.
+
 ### 5.6 `usage_daily` and `audit_events` (migration `0002`)
 
 `usage_daily`, keyed by `(project_id, day)` in UTC: `requests`, `spans_received`, `spans_accepted`, `bytes_received` (wire bytes) and `rejected_requests`. Quota checks lock and update this row inside the ingest transaction. `audit_events` is append-only: `actor`, `action` (`tenant.ensure`, `api_key.create`, `api_key.revoke`), `target`, `details`.

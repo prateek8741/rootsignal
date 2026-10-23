@@ -21,7 +21,7 @@ _TRACE_COLUMNS = (
     "trace_id, root_span_id, service_name, agent_name, agent_version, prompt_version, "
     "conversation_id, status, source, started_at, ended_at, duration_ms, span_count, "
     "error_count, llm_call_count, tool_call_count, input_tokens, output_tokens, cost_usd, "
-    "unpriced_llm_call_count, completed_at"
+    "unpriced_llm_call_count, completed_at, completion_reason"
 )
 _SPAN_COLUMNS = (
     "span_id, parent_span_id, kind, name, status, status_message, error_type, started_at, "
@@ -100,6 +100,22 @@ def get_trace(conn: Connection, tenant: TenantContext,
         "WHERE project_id = :p AND environment_id = :e AND trace_id = :t "
         "ORDER BY started_at, span_id"), params).mappings().all()
     return dict(trace), [dict(s) for s in spans]
+
+
+_FINDING_COLUMNS = (
+    "id, detector, detector_version, finding_key, severity, title, summary, "
+    "evidence_span_ids, facts, tool_name, error_type, created_at, updated_at"
+)
+
+
+def get_findings(conn: Connection, tenant: TenantContext, trace_id: str) -> list[dict[str, Any]]:
+    rows = conn.execute(text(
+        f"SELECT {_FINDING_COLUMNS} FROM findings "
+        "WHERE project_id = :p AND environment_id = :e AND trace_id = :t "
+        "ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 "
+        "WHEN 'medium' THEN 2 ELSE 3 END, detector, finding_key"),
+        {"p": tenant.project_id, "e": tenant.environment_id, "t": trace_id}).mappings().all()
+    return [dict(r) for r in rows]
 
 
 def get_payload(conn: Connection, tenant: TenantContext, sha256: str) -> dict[str, Any] | None:

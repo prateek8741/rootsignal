@@ -30,7 +30,7 @@ class Discard(SpanExporter):
 def realistic_payload(size: int) -> str:
     """JSON-ish tool output: ids, dates, amounts, versions and an occasional e-mail."""
     rng = random.Random(0)
-    records = []
+    records: list[str] = []
     while sum(len(r) for r in records) < size:
         records.append(json.dumps({
             "order_id": f"ORD-{rng.randint(10_000, 99_999)}",

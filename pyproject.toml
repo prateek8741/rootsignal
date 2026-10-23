@@ -41,4 +41,4 @@ python_version = "3.12"
 "server/migrations/versions/*" = ["E501", "I001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["rootsignal", "rootsignal_server", "conftest", "otlp_factory"]
+known-first-party = ["rootsignal", "rootsignal_server", "conftest", "otlp_factory", "run_detector_eval"]

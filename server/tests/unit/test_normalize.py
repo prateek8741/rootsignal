@@ -203,3 +203,30 @@ def test_pricing_marks_unknown_models_as_unpriced() -> None:
     unpriced = by_kind(normalize(sdk_request(lambda: call("acme", "other")),
                                  IngestPolicy(prices=prices)).spans, "llm")[0]
     assert unpriced.cost_usd is None
+
+
+def test_args_hash_is_derived_for_spans_without_one() -> None:
+    def tool_span(span_id: bytes, arguments: str) -> dict[str, object]:
+        return {"span_id": span_id, "attributes": {
+            "gen_ai.operation.name": "execute_tool", "gen_ai.tool.name": "lookup",
+            "gen_ai.tool.call.arguments": arguments}}
+
+    request = raw_request([
+        tool_span(b"\x01" * 8, '{"sku": "A-1", "warehouse": "eu"}'),
+        tool_span(b"\x02" * 8, '{"warehouse": "eu", "sku": "A-1"}'),  # same args, reordered
+        tool_span(b"\x03" * 8, '{"sku": "B-2", "warehouse": "eu"}'),
+    ])
+    a, b, c = normalize(request, IngestPolicy(redact_on_ingest="never")).spans
+    assert a.args_hash is not None and len(a.args_hash) == 16
+    assert a.args_hash == b.args_hash != c.args_hash
+    assert a.attributes["rootsignal.server.args_hash_derived"] is True
+
+
+def test_sdk_args_hash_is_kept() -> None:
+    def call() -> None:
+        with rs.agent_run("a"), rs.tool_call("lookup", arguments={"x": 1}, side_effect="read"):
+            pass
+
+    span = next(s for s in normalize(sdk_request(call), IngestPolicy()).spans if s.kind == "tool")
+    assert span.args_hash is not None
+    assert "rootsignal.server.args_hash_derived" not in span.attributes

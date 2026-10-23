@@ -1,4 +1,4 @@
-.PHONY: setup migrate test test-sdk test-server lint typecheck check bench serve measure-ingest
+.PHONY: setup migrate test test-sdk test-server lint typecheck check bench serve worker measure-ingest eval-detectors
 
 setup:
 	./scripts/dev_setup.sh
@@ -18,7 +18,7 @@ lint:
 	uv run ruff check .
 
 typecheck:
-	uv run mypy sdk/python/src server/src
+	uv run mypy sdk/python/src server/src evaluation scripts
 
 check: lint typecheck test
 
@@ -28,6 +28,12 @@ bench:
 
 serve:
 	uv run rootsignal-server serve
+
+worker:
+	uv run rootsignal-server worker
+
+eval-detectors:
+	uv run python evaluation/run_detector_eval.py --json evaluation/reports/detectors_v0.json
 
 measure-ingest:
 	@psql -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname='rootsignal_bench'" | grep -q 1 || createdb rootsignal_bench
