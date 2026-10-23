@@ -64,7 +64,7 @@ sequenceDiagram
   Note over W,DB: Investigation is on demand (user/MCP), not per trace
 ```
 
-Trace completion: a trace is considered complete when its root span has ended, or after `trace_idle_timeout` (default 60 s) with no new spans. Detection runs at completion and is idempotent per `(trace_id, detector_version)`.
+Trace completion: a trace is considered complete when its root span has ended, or after `trace_idle_timeout` (default 60 s) with no new spans (worker sweep). Detection runs at completion, re-runs when late spans arrive, and is idempotent per `(trace, detector, finding_key)`. Details: [DETECTORS.md](DETECTORS.md).
 
 ## 5. Module map
 

@@ -181,8 +181,12 @@ UPDATE traces t SET
     status = coalesce(root.status, 'unset'),
     ended_at = root.ended_at,
     duration_ms = root.duration_ms,
+    -- Completed by the root span arriving, or earlier by the worker's idle
+    -- sweep. Late child spans without a root must keep an idle completion.
     completed_at = CASE WHEN root.span_id IS NOT NULL
-                        THEN coalesce(t.completed_at, now()) END,
+                        THEN coalesce(t.completed_at, now()) ELSE t.completed_at END,
+    completion_reason = CASE WHEN root.span_id IS NOT NULL THEN 'root_span'
+                             ELSE t.completion_reason END,
     agent_name = agent.agent_name,
     agent_version = agent.agent_version,
     prompt_version = agent.prompt_version,

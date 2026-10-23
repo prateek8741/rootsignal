@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -31,6 +32,7 @@ class TraceSummary(BaseModel):
     cost_usd: Decimal | None
     unpriced_llm_call_count: int
     completed_at: datetime | None
+    completion_reason: str | None
 
 
 class TraceList(BaseModel):
@@ -66,9 +68,26 @@ class SpanOut(BaseModel):
     dialect: str
 
 
+class FindingOut(BaseModel):
+    id: uuid.UUID
+    detector: str
+    detector_version: int
+    finding_key: str
+    severity: str
+    title: str
+    summary: str
+    evidence_span_ids: list[str]
+    facts: dict[str, Any]
+    tool_name: str | None
+    error_type: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class TraceDetail(BaseModel):
     trace: TraceSummary
     spans: list[SpanOut]
+    findings: list[FindingOut]
 
 
 class PayloadOut(BaseModel):

@@ -52,6 +52,8 @@ DIALECTS = ("rootsignal", "gen_ai", "openinference", "openllmetry", "unknown")
 REDACTION_STATES = ("none", "sdk", "server", "unknown")
 JOB_STATUSES = ("queued", "running", "done", "failed", "dead")
 REDACT_ON_INGEST = ("always", "if_not_sdk", "never")
+COMPLETION_REASONS = ("root_span", "idle_timeout")
+SEVERITIES = ("critical", "high", "medium", "low")
 API_KEY_SCOPES = ("ingest", "read", "admin")
 
 
@@ -129,6 +131,9 @@ class Project(Base):
     # Server-side redaction: always, only when the SDK didn't redact, or never.
     redact_on_ingest: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="if_not_sdk")
+    # Per-detector overrides of the defaults in detection/config.py.
+    detector_config: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -183,6 +188,11 @@ class Trace(Base):
         CheckConstraint("char_length(trace_id) = 32", name="trace_id_len"),
         CheckConstraint(_in("status", SPAN_STATUSES), name="status"),
         CheckConstraint(_in("source", TRACE_SOURCES), name="source"),
+        CheckConstraint(
+            f"completion_reason IS NULL OR {_in('completion_reason', COMPLETION_REASONS)}",
+            name="completion_reason"),
+        Index("ix_traces_incomplete", "updated_at",
+              postgresql_where=text("completed_at IS NULL")),
         Index("ix_traces_project_env_started", "project_id", "environment_id",
               text("started_at DESC")),
         Index("ix_traces_project_agent_started", "project_id", "agent_name",
@@ -219,6 +229,8 @@ class Trace(Base):
     unpriced_llm_call_count: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0")
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # root_span: the root span arrived; idle_timeout: no spans for a while, root never seen.
+    completion_reason: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _created_at()
 
@@ -306,6 +318,52 @@ class Payload(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = _created_at()
     last_referenced_at: Mapped[datetime] = _created_at()
+
+
+# --------------------------------------------------------------------------
+# Detection
+# --------------------------------------------------------------------------
+
+class Finding(Base):
+    """One detector hit on one trace. Grouped into issues in increment 4.
+
+    ``finding_key`` distinguishes several hits of one detector in a trace (e.g.
+    two different tools looping); with the trace it makes re-detection
+    idempotent.
+    """
+
+    __tablename__ = "findings"
+    __table_args__ = (
+        UniqueConstraint("project_id", "trace_id", "detector", "finding_key"),
+        ForeignKeyConstraint(["project_id", "trace_id"],
+                             ["traces.project_id", "traces.trace_id"], ondelete="CASCADE"),
+        CheckConstraint(_in("severity", SEVERITIES), name="severity"),
+        Index("ix_findings_project_detector_created", "project_id", "detector",
+              text("created_at DESC")),
+        *_tenant_fks(environment=True),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    org_id: Mapped[uuid.UUID] = _org_id()
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    environment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    trace_id: Mapped[str] = mapped_column(Text, nullable=False)
+    detector: Mapped[str] = mapped_column(Text, nullable=False)
+    detector_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    finding_key: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_span_ids: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    facts: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    # Denormalised grouping fields for issue fingerprints (increment 4).
+    agent_name: Mapped[str | None] = mapped_column(Text)
+    agent_version: Mapped[str | None] = mapped_column(Text)
+    tool_name: Mapped[str | None] = mapped_column(Text)
+    error_type: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _created_at()
 
 
 # --------------------------------------------------------------------------

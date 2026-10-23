@@ -1,0 +1,75 @@
+{
+  "dataset": "detectors_v0",
+  "cases": 35,
+  "per_detector": {
+    "unhandled_exception": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "tn": 32
+    },
+    "tool_error": {
+      "tp": 8,
+      "fp": 0,
+      "fn": 0,
+      "tn": 27
+    },
+    "timeout": {
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "tn": 30
+    },
+    "repeated_tool_call": {
+      "tp": 5,
+      "fp": 2,
+      "fn": 0,
+      "tn": 28
+    },
+    "excessive_retries": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "tn": 32
+    },
+    "step_limit_reached": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 33
+    },
+    "token_budget_exceeded": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 33
+    },
+    "high_latency": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 33
+    }
+  },
+  "mismatches": [
+    {
+      "case": "cached_config_reads",
+      "category": "hard",
+      "false_positives": [
+        "repeated_tool_call"
+      ],
+      "false_negatives": [],
+      "note": "Expected false positive for repeated_tool_call."
+    },
+    {
+      "case": "polling_status",
+      "category": "hard",
+      "false_positives": [
+        "repeated_tool_call"
+      ],
+      "false_negatives": [],
+      "note": "Expected false positive for repeated_tool_call."
+    }
+  ],
+  "disclaimer": "Synthetic dataset written by the same people who wrote the detectors. These numbers check that each rule does what its label rubric says on constructed cases; they are NOT estimates of real-world precision or recall."
+}

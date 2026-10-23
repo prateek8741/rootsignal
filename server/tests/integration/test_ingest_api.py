@@ -1,90 +1,27 @@
 from __future__ import annotations
 
 import contextlib
-import gzip
 import json
 import socket
 import threading
 import time
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
-from typing import Any
 
-import httpx
 import pytest
 import uvicorn
-from fastapi.testclient import TestClient
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
-    ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
 from opentelemetry.sdk.trace import ReadableSpan
 from sqlalchemy import Engine, text
 
 import rootsignal as rs
-from conftest import TEST_DATABASE_URL
+from conftest import PROTOBUF, TEST_DATABASE_URL, Harness, make_harness
 from otlp_factory import TRACE_ID, raw_request, record_sdk_spans, request_from, sdk_request
 from rootsignal_server import admin
 from rootsignal_server.api.app import create_app
 from rootsignal_server.cli import main as cli_main
 from rootsignal_server.config import Settings, get_settings
-
-PROTOBUF = "application/x-protobuf"
-
-
-# ---------------------------------------------------------------------------
-# Harness
-# ---------------------------------------------------------------------------
-
-@dataclass
-class Harness:
-    engine: Engine
-    client: TestClient
-
-    def tenant(self, org: str = "acme", project: str = "support",
-               environment: str = "development") -> admin.TenantIds:
-        with self.engine.begin() as conn:
-            return admin.ensure_tenant(conn, org_slug=org, project_slug=project,
-                                       environment=environment, actor="test")
-
-    def key(self, tenant: admin.TenantIds, *scopes: str) -> str:
-        with self.engine.begin() as conn:
-            return admin.create_api_key(conn, tenant, name="test", scopes=scopes or ("ingest",),
-                                        actor="test").plaintext
-
-    def post(self, request: ExportTraceServiceRequest, key: str | None, *,
-             compress: bool = False, content_type: str = PROTOBUF) -> httpx.Response:
-        body = request.SerializeToString()
-        headers = {"content-type": content_type}
-        if compress:
-            body = gzip.compress(body)
-            headers["content-encoding"] = "gzip"
-        if key is not None:
-            headers["authorization"] = f"Bearer {key}"
-        return self.client.post("/v1/traces", content=body, headers=headers)
-
-    def get(self, path: str, key: str) -> httpx.Response:
-        return self.client.get(path, headers={"authorization": f"Bearer {key}"})
-
-    def scalar(self, sql: str, **params: Any) -> Any:
-        with self.engine.connect() as conn:
-            return conn.execute(text(sql), params).scalar_one()
-
-    def set_project(self, tenant: admin.TenantIds, **columns: Any) -> None:
-        assignments = ", ".join(f"{c} = :{c}" for c in columns)
-        with self.engine.begin() as conn:
-            conn.execute(text(f"UPDATE projects SET {assignments} WHERE id = :id"),
-                         {**columns, "id": tenant.project_id})
-
-
-def make_harness(engine: Engine, **settings: Any) -> Harness:
-    app = create_app(Settings(database_url=TEST_DATABASE_URL, **settings), engine=engine)
-    return Harness(engine, TestClient(app))
-
-
-@pytest.fixture
-def harness(clean_db: Engine) -> Harness:
-    return make_harness(clean_db)
 
 
 class UpstreamTimeout(Exception):

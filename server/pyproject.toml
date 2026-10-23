@@ -27,7 +27,7 @@ packages = ["src/rootsignal_server"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-pythonpath = ["tests"]
+pythonpath = ["tests", "../evaluation"]
 
 [tool.uv.sources]
 rootsignal = { workspace = true }

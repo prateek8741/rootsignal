@@ -54,10 +54,12 @@ async def get_trace(request: Request, tenant: Reader, trace_id: TraceId) -> Trac
     def run() -> TraceDetail | None:
         with engine.connect() as conn:
             found = queries.get_trace(conn, tenant, trace_id)
-        if found is None:
-            return None
-        trace, spans = found
-        return TraceDetail.model_validate({"trace": trace, "spans": spans})
+            if found is None:
+                return None
+            trace, spans = found
+            findings = queries.get_findings(conn, tenant, trace_id)
+        return TraceDetail.model_validate({"trace": trace, "spans": spans,
+                                           "findings": findings})
 
     detail = await run_in_threadpool(run)
     if detail is None:

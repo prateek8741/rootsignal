@@ -34,6 +34,11 @@ def main(argv: list[str] | None = None) -> int:
     revoke = commands.add_parser("revoke-key", help="revoke an API key by its prefix")
     revoke.add_argument("prefix")
 
+    worker = commands.add_parser("worker", help="run the background job worker")
+    worker.add_argument("--once", action="store_true",
+                        help="maintain + process one batch, then exit")
+    worker.add_argument("--poll-interval", type=float, default=1.0)
+
     args = parser.parse_args(argv)
     if args.command == "serve":
         import uvicorn
@@ -42,6 +47,9 @@ def main(argv: list[str] | None = None) -> int:
 
         uvicorn.run(create_app(), host=args.host, port=args.port)
         return 0
+
+    if args.command == "worker":
+        return _run_worker(once=args.once, poll_interval=args.poll_interval)
 
     engine = make_engine()
     try:
@@ -67,6 +75,31 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         engine.dispose()
     return 0
+
+
+def _run_worker(*, once: bool, poll_interval: float) -> int:
+    import logging
+    import signal
+    import threading
+
+    from rootsignal_server.jobs.worker import Worker, default_handlers
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    engine = make_engine()
+    worker = Worker(engine, default_handlers(), poll_interval_s=poll_interval)
+    try:
+        if once:
+            worker.maintain()
+            worker.run_once()
+            print(worker.stats)
+            return 0
+        stop = threading.Event()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sig, lambda *_: stop.set())
+        worker.run_forever(stop)
+        return 0
+    finally:
+        engine.dispose()
 
 
 if __name__ == "__main__":
