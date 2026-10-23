@@ -138,10 +138,25 @@ See [INVESTIGATIONS.md](INVESTIGATIONS.md).
 - **AI step:** `use_llm`, `llm_status` (`not_requested|disabled|queued|budget_exhausted|failed|completed`), `llm_provider`, `llm_model`, `llm_input_tokens`, `llm_output_tokens`, `llm_error`.
 - **Claims:** `rejected_claims` (`[{claim, reason}]`), and `claims` (`[{kind, source, statement, refs}]`, ordered observed → hypothesis → alternative → missing_evidence → next_step).
 
-## 7. Operational endpoints (no auth)
+## 7. Regression cases
+
+See [REGRESSION_CASES.md](REGRESSION_CASES.md).
+
+| Endpoint | Scope | Purpose |
+|---|---|---|
+| `POST /v1/issues/{id}/regression-cases {trace_id?, name?, input?}` | triage | Create version 1 (default: the worst occurrence). Omit `input` to use the captured input. **201**; 422 `invalid_source` if the trace isn't an occurrence |
+| `GET /v1/issues/{id}/regression-cases` | read | Cases of an issue |
+| `GET /v1/regression-cases?status=` | read | All cases in the environment |
+| `GET /v1/regression-cases/{id}?version=` | read | Case summary, the spec of the current (or a given) version, version history |
+| `GET /v1/regression-cases/{id}/spec?version=` | read | The spec as a standalone document (`case_id`, `version`, and the spec), for replay and CI |
+| `PATCH /v1/regression-cases/{id} {name?, entrypoint?, input?, disabled_assertions?, note?}` | triage | New version; 422 `invalid_edit` for unknown assertion IDs or nothing to change |
+
+`CaseSummary` fields: `id`, `issue_id`, `source_trace_id`, `name`, `status`, `current_version`, `entrypoint`, `replayable_recorded`, `assertion_count`, `warning_count`, `created_by`, `created_at`, `updated_at`.
+
+## 8. Operational endpoints (no auth)
 
 `GET /healthz` → `{"status": "ok"}` (process up). `GET /readyz` → 200 if the database answers, else 503.
 
-## 8. Not yet implemented
+## 9. Not yet implemented
 
 HTTP key management and user auth (Phase 2), investigation endpoints (increment 6), issue merge/split, editing `detector_config` over HTTP, `/v1/metrics` and `/v1/logs`, OTLP/gRPC, a `google.rpc.Status` error body, and retention enforcement (the `retention_days` setting exists but no deletion job runs yet).

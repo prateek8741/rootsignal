@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api, type IssueEvent } from "../api/client";
+import { CasesCard } from "../components/CasesCard";
 import { InvestigationPanel } from "../components/InvestigationPanel";
 import { IssueActions } from "../components/IssueActions";
 import { Badge, Button, Card, ErrorBox, IssueStatusBadge, Loading, SeverityBadge, Stat } from "../components/ui";
@@ -85,6 +86,7 @@ export function IssueDetailPage() {
         <Card title="Actions"><IssueActions issue={issue} /></Card>
       </div>
       <InvestigationPanel issueId={issue.id} />
+      <CasesCard issueId={issue.id} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Affected versions">
           {versions.length === 0 ? <p className="text-sm text-slate-500">No occurrences.</p> : (

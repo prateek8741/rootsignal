@@ -233,3 +233,56 @@ class InvestigationDetail(InvestigationSummary):
 
 class InvestigationList(BaseModel):
     items: list[InvestigationSummary]
+
+
+# --- regression cases -----------------------------------------------------------
+
+ENTRYPOINT_PATTERN = r"^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_.]*$"
+
+
+class CaseCreate(BaseModel):
+    trace_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    # Omit to use the captured input; set (even to null) to supply it yourself.
+    input: Any = None
+
+
+class CaseEditBody(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    entrypoint: str | None = Field(default=None, pattern=ENTRYPOINT_PATTERN, max_length=300)
+    input: Any = None
+    disabled_assertions: list[str] | None = Field(default=None, max_length=100)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class CaseSummary(BaseModel):
+    id: uuid.UUID
+    issue_id: uuid.UUID
+    source_trace_id: str
+    name: str
+    status: str
+    current_version: int
+    entrypoint: str | None
+    replayable_recorded: bool
+    assertion_count: int
+    warning_count: int
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class CaseVersionOut(BaseModel):
+    version: int
+    created_by: str
+    created_at: datetime
+    change_note: str | None
+
+
+class CaseDetail(CaseSummary):
+    version: int
+    spec: dict[str, Any]
+    versions: list[CaseVersionOut]
+
+
+class CaseList(BaseModel):
+    items: list[CaseSummary]

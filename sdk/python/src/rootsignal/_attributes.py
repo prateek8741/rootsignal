@@ -51,6 +51,8 @@ RS_USER_ID = "rootsignal.user.id"
 RS_RUN_INPUT = "rootsignal.run.input"
 RS_RUN_OUTPUT = "rootsignal.run.output"
 RS_RUN_MAX_STEPS = "rootsignal.run.max_steps"
+# "module:qualname" of a decorated agent function; lets replay call the same code.
+RS_RUN_ENTRYPOINT = "rootsignal.run.entrypoint"
 RS_TOOL_SIDE_EFFECT = "rootsignal.tool.side_effect"
 RS_TOOL_ARGS_HASH = "rootsignal.tool.args_hash"
 RS_TOOL_CALL_INDEX = "rootsignal.tool.call_index"

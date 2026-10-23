@@ -53,6 +53,7 @@ Span status is `ERROR` on an exception or `record_error()`, and left `UNSET` oth
 | `gen_ai.conversation.id` | |
 | `rootsignal.user.id` | Should be a pseudonymous ID; never an e-mail address |
 | `rootsignal.run.max_steps` | Configured step limit, used by the step-limit detector |
+| `rootsignal.run.entrypoint` | `module:qualname` of a module-level function decorated with `@rs.agent_run` (absent for nested functions and context-manager use); used by regression cases and replay |
 | `rootsignal.capture.user_input` | Whether this run's input was allowed to be captured |
 | `rootsignal.run.input` | `P`, **and** only if `capture_user_input=True`. With the decorator, the bound call arguments |
 | `rootsignal.run.output` | `P`. With the decorator, the return value |
@@ -176,6 +177,14 @@ Tool spans without `rootsignal.tool.args_hash` (non-Rootsignal SDKs) get one der
 ### 5.8 Issues (migration `0004`)
 
 `issues`, unique on `(project_id, environment_id, fingerprint)`: components, title, description, severity, status (`open|resolved|ignored`), regression fields, aggregates, representative trace IDs, resolution fields. `issue_occurrences` has one row per finding (unique `finding_id`, cascades with the finding): `issue_id`, `trace_id`, `agent_version`, `severity`, `weight`, `occurred_at`. `issue_events` holds the history. `projects.issue_grouping` holds per-detector fingerprint overrides. API keys gain the `triage` scope. Composite FKs keep occurrences, findings and issues in one tenant. See [ISSUES.md](ISSUES.md).
+
+### 5.10 Regression cases (migration `0006`)
+
+`regression_cases` holds identity and status: issue, source trace (no FK; a case outlives its trace), name, status (`draft` now; replay statuses in increment 8), current version. `regression_case_versions` holds immutable spec snapshots (`spec` JSONB, change note, author) keyed by `(case_id, version)`. See [REGRESSION_CASES.md](REGRESSION_CASES.md).
+
+### 5.9 Sessions and investigations (migration `0005`)
+
+`dashboard_sessions`, `login_links` (token hashes only), `investigations`, `investigation_claims` (CHECKs: observed ⇒ rules, verified ⇒ replay), `projects.llm_monthly_token_budget`, `usage_daily.llm_*_tokens`. See [INVESTIGATIONS.md](INVESTIGATIONS.md).
 
 ### 5.6 `usage_daily` and `audit_events` (migration `0002`)
 

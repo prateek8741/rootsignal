@@ -23,7 +23,8 @@ The Vite dev server forwards `/v1` to the API (`ROOTSIGNAL_API` overrides the ta
 | Traces | Filter by status, agent, version and time range; finding count, errored spans, duration, spans, tokens, cost (`≥` when some model calls were unpriced); cursor paging. Separate empty states for "no traces yet" (with an SDK snippet) and "no matches" |
 | Trace | Summary, findings (click to highlight evidence spans; link to the issue), execution waterfall (tree + timeline; errors in red; "repeat #n" for identical calls; write side effects; orphans), span details (model/tokens/cost, side effect, args hash, redacted exception, attributes) with payloads fetched on demand, showing truncation and redaction state |
 | Issues | Status tabs (open default), severity filter, sort by recency, frequency or severity; regression badge; affected versions |
-| Issue | Description, counts, first/latest/worst trace links, resolve (with optional fixed-in version and note), ignore or reopen (disabled without `triage`), **investigation panel** (claims by kind, AI suggestions marked, evidence chips linking to spans, discarded suggestions with reasons), version breakdown, history with actors, occurrences |
+| Case | Source, entrypoint and input (editable: each edit is a new version), quality warnings, assertions with role and requirement badges (toggle to disable), recorded tool calls with fidelity flags (stubbed write tools marked), version history, Download JSON |
+| Issue | Description, counts, first/latest/worst trace links, regression cases (create from the worst trace), resolve (with optional fixed-in version and note), ignore or reopen (disabled without `triage`), **investigation panel** (claims by kind, AI suggestions marked, evidence chips linking to spans, discarded suggestions with reasons), version breakdown, history with actors, occurrences |
 
 ## Signing in and security
 
