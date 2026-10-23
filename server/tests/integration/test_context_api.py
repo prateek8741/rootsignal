@@ -22,7 +22,8 @@ def test_context_describes_the_key(harness: Harness) -> None:
     context = harness.get("/v1/context", key).json()
     assert context == {"org_slug": "acme", "org_name": "acme", "project_slug": "support",
                        "project_name": "support", "environment": "staging",
-                       "scopes": ["read", "triage"], "key_prefix": key[:11]}
+                       "scopes": ["read", "triage"], "key_prefix": key[:11],
+                       "principal": f"api_key:{key[:11]}", "llm_available": False}
     ingest_only = harness.key(tenant, "ingest")
     assert harness.get("/v1/context", ingest_only).json()["scopes"] == ["ingest"]
     assert harness.get("/v1/context", "rs_" + "x" * 43).status_code == 401

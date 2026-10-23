@@ -1,42 +1,57 @@
 import { expect, test } from "@playwright/test";
 
-// Needs: API + worker running, demo data seeded (scripts/seed_demo.py), `npm run dev`,
-// and DASHBOARD_KEY set to the read+triage key the seed script printed.
-const key = process.env.DASHBOARD_KEY ?? "";
+// Needs: API + worker running, demo data seeded, `npm run dev`, and DASHBOARD_LOGIN_URL set
+// to a fresh one-time link (`rootsignal-server dashboard-link --org demo --project agents`).
+const loginUrl = process.env.DASHBOARD_LOGIN_URL ?? "";
 
-test("connect, inspect a failing trace, open its issue", async ({ page }) => {
-  test.skip(!key, "set DASHBOARD_KEY to a read+triage key");
+test("sign in with a link, inspect a failing trace, investigate its issue", async ({ page, context }) => {
+  test.skip(!loginUrl, "set DASHBOARD_LOGIN_URL to a fresh one-time login link");
 
-  await page.goto("/connect");
-  await page.getByLabel("API key").fill(key);
-  await page.getByRole("button", { name: "Connect" }).click();
+  await page.goto(loginUrl);
   await expect(page.getByRole("heading", { name: "Traces" })).toBeVisible();
-  const rows = page.locator("tbody tr");
-  await expect(rows.first()).toBeVisible();
+  expect(page.url()).not.toContain("token"); // erased from the address bar and history
+
+  // The session is an httpOnly cookie: present for the browser, invisible to page scripts.
+  const cookies = await context.cookies();
+  const session = cookies.find((c) => c.name === "rs_session");
+  expect(session?.httpOnly).toBe(true);
+  expect(session?.sameSite).toBe("Strict");
+  const visibleToScripts = await page.evaluate(() => ({
+    cookie: document.cookie, session: sessionStorage.length, local: localStorage.length,
+  }));
+  expect(visibleToScripts).toEqual({ cookie: "", session: 0, local: 0 });
   await page.screenshot({ path: "test-results/01-traces.png", fullPage: true });
 
-  // A support-agent v1 trace with findings: the retry loop.
   await page.getByLabel("Agent").fill("support-agent");
   await page.getByLabel("Version").fill("v1");
+  const rows = page.locator("tbody tr");
   const withFindings = rows.filter({ has: page.locator("td:nth-child(4) span", { hasText: /^[1-9]/ }) });
   await withFindings.first().getByRole("link").first().click();
-  await expect(page.getByRole("heading", { name: /Findings/ })).toBeVisible();
   await expect(page.getByRole("tree", { name: "Spans" })).toBeVisible();
-  await page.getByRole("button", { name: /retried|identical arguments|steps/ }).first().click();
-  await expect(page.getByText("Evidence highlighted below")).toBeVisible();
-  await page.getByRole("treeitem").filter({ hasText: "UpstreamTimeout" }).first().click();
-  await expect(page.getByText("Side effect", { exact: true })).toBeVisible();
   await page.screenshot({ path: "test-results/02-trace.png", fullPage: true });
 
   await page.getByRole("link", { name: "View issue →" }).first().click();
   await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Resolve…" })).toBeEnabled();
-  await page.screenshot({ path: "test-results/03-issue.png", fullPage: true });
+  const investigate = page.getByRole("button", { name: /Run investigation|Investigate again/ });
+  await investigate.click();
+  // Wait for *this* run to finish: an earlier investigation's results may already be shown.
+  await expect(page.getByRole("button", { name: "Investigating…" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Investigate again" })).toBeVisible({ timeout: 20_000 });
+  const observed = page.getByRole("region", { name: "Observed" });
+  await expect(observed).toBeVisible();
+  await expect(page.getByRole("region", { name: "Hypotheses" })).toBeVisible();
+  await page.screenshot({ path: "test-results/03-investigation.png", fullPage: true });
 
-  await page.getByRole("link", { name: "Issues", exact: true }).click();
-  // Assert on the page itself: the issue detail page also has table rows.
-  await expect(page.getByRole("heading", { level: 1, name: "Issues", exact: true })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "open" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("tbody tr").first()).toBeVisible();
-  await page.screenshot({ path: "test-results/04-issues.png", fullPage: true });
+  // Evidence links lead to the exact span.
+  const evidence = observed.getByRole("link", { name: /^span / }).first();
+  const spanId = new URL(String(await evidence.getAttribute("href")), "http://x").searchParams.get("span");
+  await evidence.click();
+  await expect(page.getByRole("treeitem", { selected: true })).toBeVisible();
+  await expect(page.getByText(String(spanId), { exact: true })).toBeVisible(); // details panel
+  await page.screenshot({ path: "test-results/04-evidence-span.png", fullPage: true });
+
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in to Rootsignal" })).toBeVisible();
+  await page.goto("/traces");
+  await expect(page.getByRole("heading", { name: "Sign in to Rootsignal" })).toBeVisible();
 });

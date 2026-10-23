@@ -4,28 +4,30 @@ import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
 import type { Context } from "../api/client";
-import { ConnectionProvider } from "../lib/connection";
+import { AuthProvider } from "../lib/auth";
 
 export const CONTEXT: Context = {
   org_slug: "acme", org_name: "Acme", project_slug: "support", project_name: "Support",
-  environment: "production", scopes: ["read", "triage"], key_prefix: "rs_testkey",
+  environment: "production", scopes: ["read", "triage"], key_prefix: "s_1a2b3c4d",
+  principal: "session:s_1a2b3c4d", llm_available: false,
 };
 
-/** Seed the session with an active connection, as the Connect page would. */
-export function connectAs(context: Context = CONTEXT, apiKey = "rs_" + "k".repeat(43)): void {
-  sessionStorage.setItem("rootsignal.connections",
-    JSON.stringify([{ id: context.key_prefix, apiKey, context }]));
-  sessionStorage.setItem("rootsignal.active", context.key_prefix);
-}
+type Hit = { status?: number; body?: unknown } | undefined;
+type Route = (url: URL, init?: RequestInit) => Hit;
 
-type Route = (url: URL, init?: RequestInit) => { status?: number; body: unknown } | undefined;
-
-/** Replace fetch with a router of canned API responses; returns the mock for assertions. */
-export function mockApi(route: Route) {
+/**
+ * Replace fetch with canned API responses. ``session`` is what GET /v1/auth/session
+ * returns (null = signed out); other paths go to ``route``.
+ */
+export function mockApi(route: Route = () => undefined, { session = CONTEXT as Context | null } = {}) {
   const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), "http://dashboard.test");
-    const hit = route(url, init);
+    let hit: Hit = route(url, init);
+    if (!hit && url.pathname === "/v1/auth/session" && (!init?.method || init.method === "GET")) {
+      hit = session ? { body: session } : { status: 401, body: { error: { code: "unauthenticated", message: "missing credentials" } } };
+    }
     if (!hit) return new Response(JSON.stringify({ error: { code: "not_found", message: "not found" } }), { status: 404 });
+    if (hit.status === 204) return new Response(null, { status: 204 });
     return new Response(JSON.stringify(hit.body), { status: hit.status ?? 200,
       headers: { "Content-Type": "application/json" } });
   });
@@ -37,9 +39,9 @@ export function renderWithProviders(ui: ReactElement, { route = "/" } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <ConnectionProvider>
+      <AuthProvider>
         <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
-      </ConnectionProvider>
+      </AuthProvider>
     </QueryClientProvider>,
   );
 }

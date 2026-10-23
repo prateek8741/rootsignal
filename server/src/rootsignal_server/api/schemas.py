@@ -44,6 +44,8 @@ class Context(BaseModel):
     environment: str
     scopes: list[str]
     key_prefix: str
+    principal: str  # "api_key:<prefix>" or "session:<label>"
+    llm_available: bool  # server has a model provider and this project has an LLM budget
 
 
 class TraceList(BaseModel):
@@ -189,3 +191,45 @@ class StatusChange(BaseModel):
     status: Literal["open", "resolved", "ignored"]
     fixed_in_version: str | None = Field(default=None, min_length=1, max_length=200)
     note: str | None = Field(default=None, max_length=2000)
+
+
+# --- investigations -------------------------------------------------------------
+
+class InvestigationRequest(BaseModel):
+    use_llm: bool = False
+
+
+class ClaimOut(BaseModel):
+    kind: str
+    source: str
+    statement: str
+    refs: list[dict[str, Any]]
+
+
+class InvestigationSummary(BaseModel):
+    id: uuid.UUID
+    issue_id: uuid.UUID
+    status: str
+    requested_by: str
+    use_llm: bool
+    llm_status: str
+    llm_provider: str | None
+    llm_model: str | None
+    llm_input_tokens: int
+    llm_output_tokens: int
+    llm_error: str | None
+    summary: str | None
+    evidence_trace_ids: list[str]
+    rejected_claims: list[dict[str, Any]]
+    error: str | None
+    created_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
+
+
+class InvestigationDetail(InvestigationSummary):
+    claims: list[ClaimOut]
+
+
+class InvestigationList(BaseModel):
+    items: list[InvestigationSummary]

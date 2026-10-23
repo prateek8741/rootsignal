@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, type Finding } from "../api/client";
 import { SpanDetails } from "../components/SpanDetails";
 import { SpanWaterfall } from "../components/SpanWaterfall";
 import { Card, EmptyState, ErrorBox, Loading, SeverityBadge, Stat, TraceStatusBadge } from "../components/ui";
 import { formatCost, formatDuration, formatTime, formatTokens } from "../lib/format";
-import { useActiveConnection } from "../lib/connection";
 import { evidenceSpanIds } from "../lib/spanTree";
 
 function FindingsPanel({ findings, focused, onFocus }: {
@@ -47,9 +46,17 @@ function FindingsPanel({ findings, focused, onFocus }: {
 
 export function TraceDetailPage() {
   const { traceId = "" } = useParams();
-  const { apiKey } = useActiveConnection();
-  const query = useQuery({ queryKey: ["trace", apiKey, traceId], queryFn: () => api.trace(apiKey, traceId) });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [params] = useSearchParams();
+  const query = useQuery({ queryKey: ["trace", traceId], queryFn: () => api.trace(traceId) });
+  // ?span=<id> (e.g. from an investigation claim) preselects and reveals that span.
+  const [selectedId, setSelectedId] = useState<string | null>(params.get("span"));
+  useEffect(() => {
+    const target = params.get("span");
+    if (target && query.data) {
+      setSelectedId(target);
+      document.querySelector(`[data-testid="span-${CSS.escape(target)}"]`)?.scrollIntoView({ block: "center" });
+    }
+  }, [params, query.data]);
   const [focused, setFocused] = useState<Finding | null>(null);
   const highlighted = useMemo(() => evidenceSpanIds(focused ? [focused] : []), [focused]);
 

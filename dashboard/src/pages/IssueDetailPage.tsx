@@ -1,13 +1,13 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api, type IssueEvent } from "../api/client";
+import { InvestigationPanel } from "../components/InvestigationPanel";
 import { IssueActions } from "../components/IssueActions";
 import { Badge, Button, Card, ErrorBox, IssueStatusBadge, Loading, SeverityBadge, Stat } from "../components/ui";
 import { formatRelative, formatTime, shortId } from "../lib/format";
-import { useActiveConnection } from "../lib/connection";
 
 const EVENT_TEXT: Record<string, string> = {
-  created: "Issue created", status_changed: "Status changed",
+  created: "Issue created", status_changed: "Status changed", investigated: "Investigated",
   regressed: "Reopened as a regression", straggler: "Occurrence from an old version (straggler)",
 };
 
@@ -35,11 +35,10 @@ function EventRow({ event }: { event: IssueEvent }) {
 
 export function IssueDetailPage() {
   const { issueId = "" } = useParams();
-  const { apiKey } = useActiveConnection();
-  const query = useQuery({ queryKey: ["issue", apiKey, issueId], queryFn: () => api.issue(apiKey, issueId) });
+  const query = useQuery({ queryKey: ["issue", issueId], queryFn: () => api.issue(issueId) });
   const occurrences = useInfiniteQuery({
-    queryKey: ["issue", apiKey, issueId, "occurrences"],
-    queryFn: ({ pageParam }) => api.occurrences(apiKey, issueId, pageParam),
+    queryKey: ["issue", issueId, "occurrences"],
+    queryFn: ({ pageParam }) => api.occurrences(issueId, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
   });
@@ -85,6 +84,7 @@ export function IssueDetailPage() {
         </Card>
         <Card title="Actions"><IssueActions issue={issue} /></Card>
       </div>
+      <InvestigationPanel issueId={issue.id} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Affected versions">
           {versions.length === 0 ? <p className="text-sm text-slate-500">No occurrences.</p> : (

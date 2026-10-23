@@ -126,14 +126,19 @@ def get_findings(conn: Connection, tenant: TenantContext, trace_id: str) -> list
     return [dict(r) for r in rows]
 
 
-def get_context(conn: Connection, tenant: TenantContext) -> dict[str, Any]:
+def get_context(conn: Connection, tenant: TenantContext, *,
+                llm_configured: bool = False) -> dict[str, Any]:
     row = conn.execute(text(
         "SELECT o.slug AS org_slug, o.name AS org_name, p.slug AS project_slug, "
-        "p.name AS project_name, e.name AS environment FROM environments e "
+        "p.name AS project_name, e.name AS environment, "
+        "p.llm_monthly_token_budget AS llm_budget FROM environments e "
         "JOIN projects p ON p.id = e.project_id JOIN organizations o ON o.id = p.org_id "
         "WHERE e.id = :e AND p.id = :p"),
         {"e": tenant.environment_id, "p": tenant.project_id}).mappings().one()
-    return {**dict(row), "scopes": sorted(tenant.scopes), "key_prefix": tenant.key_prefix}
+    data = dict(row)
+    budget = data.pop("llm_budget")
+    return {**data, "scopes": sorted(tenant.scopes), "key_prefix": tenant.key_prefix,
+            "principal": tenant.actor, "llm_available": llm_configured and budget > 0}
 
 
 def get_payload(conn: Connection, tenant: TenantContext, sha256: str) -> dict[str, Any] | None:

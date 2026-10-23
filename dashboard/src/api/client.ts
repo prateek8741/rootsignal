@@ -15,6 +15,10 @@ export type IssueEvent = Schemas["IssueEventOut"];
 export type Occurrence = Schemas["OccurrenceOut"];
 export type OccurrenceList = Schemas["OccurrenceList"];
 export type StatusChange = Schemas["StatusChange"];
+export type Investigation = Schemas["InvestigationDetail"];
+export type InvestigationSummary = Schemas["InvestigationSummary"];
+export type InvestigationList = Schemas["InvestigationList"];
+export type Claim = Schemas["ClaimOut"];
 
 /** An error response from the API (or the network). */
 export class ApiError extends Error {
@@ -39,12 +43,18 @@ function withQuery(path: string, query?: Query): string {
   return qs ? `${path}?${qs}` : path;
 }
 
-export async function request<T>(path: string, apiKey: string, init?: RequestInit): Promise<T> {
+/**
+ * Authentication is an httpOnly session cookie the browser attaches by itself:
+ * this code never sees or stores a credential. Every request carries the CSRF
+ * header the API requires for cookie-authenticated changes.
+ */
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
     response = await fetch(path, {
       ...init,
-      headers: { ...init?.headers, Authorization: `Bearer ${apiKey}` },
+      credentials: "same-origin",
+      headers: { ...init?.headers, "X-Rootsignal-CSRF": "1" },
     });
   } catch {
     throw new ApiError(0, "network", "Can't reach the Rootsignal API. Is the server running?");
@@ -61,8 +71,15 @@ export async function request<T>(path: string, apiKey: string, init?: RequestIni
     }
     throw new ApiError(response.status, code, message);
   }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
+
+const json = (body: unknown): RequestInit => ({
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
 
 export interface TraceQuery extends Query {
   status?: string;
@@ -84,18 +101,24 @@ export interface IssueQuery extends Query {
 }
 
 export const api = {
-  context: (key: string) => request<Context>("/v1/context", key),
-  traces: (key: string, q: TraceQuery) => request<TraceList>(withQuery("/v1/traces", q), key),
-  trace: (key: string, traceId: string) => request<TraceDetail>(`/v1/traces/${traceId}`, key),
-  payload: (key: string, sha256: string) => request<Payload>(`/v1/payloads/${sha256}`, key),
-  issues: (key: string, q: IssueQuery) => request<IssueList>(withQuery("/v1/issues", q), key),
-  issue: (key: string, id: string) => request<IssueDetail>(`/v1/issues/${id}`, key),
-  occurrences: (key: string, id: string, cursor?: string) =>
-    request<OccurrenceList>(withQuery(`/v1/issues/${id}/occurrences`, { cursor }), key),
-  setStatus: (key: string, id: string, change: StatusChange) =>
-    request<IssueSummary>(`/v1/issues/${id}/status`, key, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(change),
-    }),
+  session: () => request<Context>("/v1/auth/session"),
+  /** The key is sent once and immediately exchanged for a session cookie. */
+  signInWithKey: (apiKey: string) => request<Context>("/v1/auth/session", json({ api_key: apiKey })),
+  signInWithLink: (token: string) => request<Context>("/v1/auth/link", json({ token })),
+  signOut: () => request<void>("/v1/auth/session", { method: "DELETE" }),
+
+  traces: (q: TraceQuery) => request<TraceList>(withQuery("/v1/traces", q)),
+  trace: (traceId: string) => request<TraceDetail>(`/v1/traces/${traceId}`),
+  payload: (sha256: string) => request<Payload>(`/v1/payloads/${sha256}`),
+  issues: (q: IssueQuery) => request<IssueList>(withQuery("/v1/issues", q)),
+  issue: (id: string) => request<IssueDetail>(`/v1/issues/${id}`),
+  occurrences: (id: string, cursor?: string) =>
+    request<OccurrenceList>(withQuery(`/v1/issues/${id}/occurrences`, { cursor })),
+  setStatus: (id: string, change: StatusChange) =>
+    request<IssueSummary>(`/v1/issues/${id}/status`, json(change)),
+  startInvestigation: (issueId: string, useLlm: boolean) =>
+    request<Investigation>(`/v1/issues/${issueId}/investigations`, json({ use_llm: useLlm })),
+  investigations: (issueId: string) =>
+    request<InvestigationList>(`/v1/issues/${issueId}/investigations`),
+  investigation: (id: string) => request<Investigation>(`/v1/investigations/${id}`),
 };

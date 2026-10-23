@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { NavLink, Navigate, Outlet, useNavigate } from "react-router-dom";
-import { connectionLabel, useConnections } from "../lib/connection";
+import { sessionLabel, useAuth } from "../lib/auth";
+import { ErrorBox, Loading } from "./ui";
 
-export function RequireConnection() {
-  const { active } = useConnections();
-  if (!active) return <Navigate to="/connect" replace />;
+export function RequireAuth() {
+  const { status, error } = useAuth();
+  if (status === "loading") return <Loading label="Checking your session…" />;
+  if (status === "error") return <div className="p-8"><ErrorBox error={error} /></div>;
+  if (status === "signed-out") return <Navigate to="/login" replace />;
   return <Layout />;
 }
 
@@ -18,10 +22,10 @@ function NavItem({ to, label }: { to: string; label: string }) {
 }
 
 function Layout() {
-  const { connections, active, select, disconnect } = useConnections();
+  const { context, signOut } = useAuth();
   const navigate = useNavigate();
-  if (!active) return null;
-  const { context } = active;
+  const [signingOut, setSigningOut] = useState(false);
+  if (!context) return null;
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-60 shrink-0 flex-col bg-slate-900 px-3 py-4 text-slate-100">
@@ -30,29 +34,18 @@ function Layout() {
           <NavItem to="/traces" label="Traces" />
           <NavItem to="/issues" label="Issues" />
         </nav>
-        <div className="mt-auto space-y-2 border-t border-slate-800 px-1 pt-4 text-xs">
-          <label className="block text-slate-400" htmlFor="connection">Environment</label>
-          <select id="connection" value={active.id}
-            onChange={(e) => {
-              select(e.target.value);
-              navigate("/traces");
-            }}
-            className="w-full rounded-md border border-slate-700 bg-slate-800 px-2 py-1.5 text-slate-100">
-            {connections.map((c) => (
-              <option key={c.id} value={c.id}>{connectionLabel(c.context)}</option>
-            ))}
-          </select>
-          <p className="text-slate-400">
-            Key <span className="font-mono">{context.key_prefix}…</span> · {context.scopes.join(", ")}
-          </p>
-          <div className="flex gap-3">
-            <button type="button" className="text-slate-300 underline" onClick={() => navigate("/connect")}>
-              Add key
-            </button>
-            <button type="button" className="text-slate-300 underline" onClick={() => disconnect(active.id)}>
-              Disconnect
-            </button>
-          </div>
+        <div className="mt-auto space-y-2 border-t border-slate-800 px-2 pt-4 text-xs">
+          <p className="text-slate-400">Environment</p>
+          <p className="font-medium text-slate-100" data-testid="environment">{sessionLabel(context)}</p>
+          <p className="text-slate-400">{context.scopes.join(", ")} · {context.principal}</p>
+          <button type="button" disabled={signingOut} className="text-slate-300 underline disabled:opacity-50"
+            onClick={() => {
+              setSigningOut(true);
+              void signOut().finally(() => navigate("/login", { replace: true }));
+            }}>
+            Sign out
+          </button>
+          <p className="text-slate-500">To switch environment, sign out and use that environment's login link.</p>
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-8 py-6">

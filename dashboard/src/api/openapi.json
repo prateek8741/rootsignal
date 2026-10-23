@@ -1,6 +1,38 @@
 {
   "components": {
     "schemas": {
+      "ClaimOut": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "refs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Refs",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "statement",
+          "refs"
+        ],
+        "title": "ClaimOut",
+        "type": "object"
+      },
       "Context": {
         "properties": {
           "environment": {
@@ -11,12 +43,20 @@
             "title": "Key Prefix",
             "type": "string"
           },
+          "llm_available": {
+            "title": "Llm Available",
+            "type": "boolean"
+          },
           "org_name": {
             "title": "Org Name",
             "type": "string"
           },
           "org_slug": {
             "title": "Org Slug",
+            "type": "string"
+          },
+          "principal": {
+            "title": "Principal",
             "type": "string"
           },
           "project_name": {
@@ -42,7 +82,9 @@
           "project_name",
           "environment",
           "scopes",
-          "key_prefix"
+          "key_prefix",
+          "principal",
+          "llm_available"
         ],
         "title": "Context",
         "type": "object"
@@ -165,6 +207,359 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InvestigationDetail": {
+        "properties": {
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimOut"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "evidence_trace_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Trace Ids",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "issue_id": {
+            "format": "uuid",
+            "title": "Issue Id",
+            "type": "string"
+          },
+          "llm_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Error"
+          },
+          "llm_input_tokens": {
+            "title": "Llm Input Tokens",
+            "type": "integer"
+          },
+          "llm_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Model"
+          },
+          "llm_output_tokens": {
+            "title": "Llm Output Tokens",
+            "type": "integer"
+          },
+          "llm_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider"
+          },
+          "llm_status": {
+            "title": "Llm Status",
+            "type": "string"
+          },
+          "rejected_claims": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rejected Claims",
+            "type": "array"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "use_llm": {
+            "title": "Use Llm",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "issue_id",
+          "status",
+          "requested_by",
+          "use_llm",
+          "llm_status",
+          "llm_provider",
+          "llm_model",
+          "llm_input_tokens",
+          "llm_output_tokens",
+          "llm_error",
+          "summary",
+          "evidence_trace_ids",
+          "rejected_claims",
+          "error",
+          "created_at",
+          "started_at",
+          "completed_at",
+          "claims"
+        ],
+        "title": "InvestigationDetail",
+        "type": "object"
+      },
+      "InvestigationList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InvestigationSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "InvestigationList",
+        "type": "object"
+      },
+      "InvestigationRequest": {
+        "properties": {
+          "use_llm": {
+            "default": false,
+            "title": "Use Llm",
+            "type": "boolean"
+          }
+        },
+        "title": "InvestigationRequest",
+        "type": "object"
+      },
+      "InvestigationSummary": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "evidence_trace_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Trace Ids",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "issue_id": {
+            "format": "uuid",
+            "title": "Issue Id",
+            "type": "string"
+          },
+          "llm_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Error"
+          },
+          "llm_input_tokens": {
+            "title": "Llm Input Tokens",
+            "type": "integer"
+          },
+          "llm_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Model"
+          },
+          "llm_output_tokens": {
+            "title": "Llm Output Tokens",
+            "type": "integer"
+          },
+          "llm_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider"
+          },
+          "llm_status": {
+            "title": "Llm Status",
+            "type": "string"
+          },
+          "rejected_claims": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rejected Claims",
+            "type": "array"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "use_llm": {
+            "title": "Use Llm",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "issue_id",
+          "status",
+          "requested_by",
+          "use_llm",
+          "llm_status",
+          "llm_provider",
+          "llm_model",
+          "llm_input_tokens",
+          "llm_output_tokens",
+          "llm_error",
+          "summary",
+          "evidence_trace_ids",
+          "rejected_claims",
+          "error",
+          "created_at",
+          "started_at",
+          "completed_at"
+        ],
+        "title": "InvestigationSummary",
         "type": "object"
       },
       "IssueDetail": {
@@ -527,6 +922,36 @@
           "last_seen_at"
         ],
         "title": "IssueVersion",
+        "type": "object"
+      },
+      "KeyLogin": {
+        "properties": {
+          "api_key": {
+            "maxLength": 128,
+            "minLength": 10,
+            "title": "Api Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "api_key"
+        ],
+        "title": "KeyLogin",
+        "type": "object"
+      },
+      "LinkLogin": {
+        "properties": {
+          "token": {
+            "maxLength": 128,
+            "minLength": 20,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "LinkLogin",
         "type": "object"
       },
       "OccurrenceList": {
@@ -1262,6 +1687,107 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/auth/link": {
+      "post": {
+        "operationId": "login_with_link_v1_auth_link_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Context"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign in with a one-time login link"
+      }
+    },
+    "/v1/auth/session": {
+      "delete": {
+        "operationId": "logout_v1_auth_session_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sign out (ends the session server-side)"
+      },
+      "get": {
+        "operationId": "current_session_v1_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Context"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Who is signed in"
+      },
+      "post": {
+        "operationId": "login_with_key_v1_auth_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Context"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign in by exchanging an API key"
+      }
+    },
     "/v1/context": {
       "get": {
         "operationId": "get_context_v1_context_get",
@@ -1278,6 +1804,46 @@
           }
         },
         "summary": "Who this key belongs to and what it may do (any valid key)"
+      }
+    },
+    "/v1/investigations/{investigation_id}": {
+      "get": {
+        "operationId": "get_one_v1_investigations__investigation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "investigation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Investigation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "An investigation with its claims"
       }
     },
     "/v1/issues": {
@@ -1473,6 +2039,94 @@
           }
         },
         "summary": "Issue with versions, history and recent occurrences"
+      }
+    },
+    "/v1/issues/{issue_id}/investigations": {
+      "get": {
+        "operationId": "list_for_issue_v1_issues__issue_id__investigations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Issue Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recent investigations of an issue"
+      },
+      "post": {
+        "operationId": "start_v1_issues__issue_id__investigations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Issue Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestigationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start an investigation (runs in the worker)"
       }
     },
     "/v1/issues/{issue_id}/occurrences": {

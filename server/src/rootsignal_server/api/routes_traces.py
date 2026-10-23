@@ -28,7 +28,8 @@ async def get_context(request: Request, tenant: AnyKey) -> Context:
 
     def run() -> Context:
         with engine.connect() as conn:
-            return Context.model_validate(queries.get_context(conn, tenant))
+            return Context.model_validate(queries.get_context(
+                conn, tenant, llm_configured=app_state(request).settings.llm_provider != "none"))
 
     return await run_in_threadpool(run)
 

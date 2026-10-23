@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type IssueSummary, type StatusChange } from "../api/client";
-import { useActiveConnection } from "../lib/connection";
+import { useSession } from "../lib/auth";
 import { Button, ErrorBox } from "./ui";
 
 /** Resolve / ignore / reopen. Requires the key's `triage` scope (enforced by the API). */
 export function IssueActions({ issue }: { issue: IssueSummary }) {
-  const { apiKey, context } = useActiveConnection();
+  const context = useSession();
   const queryClient = useQueryClient();
   const canTriage = context.scopes.includes("triage");
   const [resolving, setResolving] = useState(false);
@@ -14,13 +14,13 @@ export function IssueActions({ issue }: { issue: IssueSummary }) {
   const [note, setNote] = useState("");
 
   const mutation = useMutation({
-    mutationFn: (change: StatusChange) => api.setStatus(apiKey, issue.id, change),
+    mutationFn: (change: StatusChange) => api.setStatus(issue.id, change),
     onSuccess: () => {
       setResolving(false);
       setFixedIn("");
       setNote("");
-      void queryClient.invalidateQueries({ queryKey: ["issue", apiKey, issue.id] });
-      void queryClient.invalidateQueries({ queryKey: ["issues", apiKey] });
+      void queryClient.invalidateQueries({ queryKey: ["issue", issue.id] });
+      void queryClient.invalidateQueries({ queryKey: ["issues"] });
     },
   });
 

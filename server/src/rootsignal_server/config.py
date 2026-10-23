@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +29,25 @@ class Settings(BaseSettings):
     # Bound on the JSONB attributes stored per span.
     max_attribute_value_chars: int = Field(default=4096, ge=256)
     max_span_attributes_bytes: int = Field(default=65_536, ge=4096)
+
+    # Dashboard sessions (see docs/THREAT_MODEL.md §3.3).
+    session_absolute_ttl_hours: float = Field(default=12, gt=0)
+    session_idle_minutes: float = Field(default=120, gt=0)
+    # Must be true whenever the dashboard is served over HTTPS (any non-local deploy).
+    session_cookie_secure: bool = False
+    login_link_ttl_minutes: float = Field(default=5, gt=0, le=60)
+    # Unauthenticated login endpoints, per client IP, per server process.
+    login_rate_limit_per_minute: int = Field(default=30, ge=1)
+
+    # Platform LLM for investigations (see docs/INVESTIGATIONS.md).
+    llm_provider: Literal["none", "ollama", "openai_compatible"] = "none"
+    llm_base_url: str = "http://127.0.0.1:11434"
+    llm_model: str = "llama3.1:8b"
+    llm_api_key: SecretStr | None = None
+    # Refuse non-loopback providers unless explicitly allowed: evidence is customer data.
+    llm_allow_external: bool = False
+    llm_timeout_s: float = Field(default=120, gt=0)
+    llm_max_output_tokens: int = Field(default=800, ge=64, le=8192)
 
 
 @lru_cache(maxsize=1)

@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import threading
 import time
-import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 
 
@@ -27,10 +26,10 @@ class RateLimiter:
         self._burst = float(burst)
         self._clock = clock
         self._max_keys = max_keys
-        self._buckets: dict[uuid.UUID, _Bucket] = {}
+        self._buckets: dict[Hashable, _Bucket] = {}
         self._lock = threading.Lock()
 
-    def try_acquire(self, key_id: uuid.UUID) -> float:
+    def try_acquire(self, key_id: Hashable) -> float:
         """Take one token. Returns 0 on success, else seconds until one is available."""
         now = self._clock()
         with self._lock:

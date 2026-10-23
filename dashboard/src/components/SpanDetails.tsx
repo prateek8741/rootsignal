@@ -2,15 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type Span } from "../api/client";
 import { formatCost, formatDuration, formatTime, formatTokens, prettyPayload } from "../lib/format";
-import { useActiveConnection } from "../lib/connection";
 import { Badge, Button, ErrorBox, KindBadge, Loading, Stat } from "./ui";
 
 function PayloadViewer({ label, sha256 }: { label: string; sha256: string | null }) {
-  const { apiKey } = useActiveConnection();
   const [open, setOpen] = useState(false);
   const query = useQuery({
-    queryKey: ["payload", apiKey, sha256],
-    queryFn: () => api.payload(apiKey, sha256 as string),
+    queryKey: ["payload", sha256],
+    queryFn: () => api.payload(sha256 as string),
     enabled: open && sha256 !== null,
     staleTime: Infinity, // content-addressed: never changes
   });

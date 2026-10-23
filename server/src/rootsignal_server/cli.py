@@ -36,6 +36,19 @@ def main(argv: list[str] | None = None) -> int:
     revoke = commands.add_parser("revoke-key", help="revoke an API key by its prefix")
     revoke.add_argument("prefix")
 
+    link = commands.add_parser("dashboard-link", help="print a one-time dashboard login link")
+    link.add_argument("--org", required=True)
+    link.add_argument("--project", required=True)
+    link.add_argument("--environment", default="development")
+    link.add_argument("--scopes", default="read,triage", help="read or read,triage")
+    link.add_argument("--url", default="http://127.0.0.1:5173", help="dashboard base URL")
+
+    sessions = commands.add_parser("revoke-sessions", help="end dashboard sessions")
+    sessions.add_argument("--org", required=True)
+    sessions.add_argument("--project", required=True)
+    sessions.add_argument("--environment", default="development")
+    sessions.add_argument("--all-environments", action="store_true")
+
     regroup = commands.add_parser(
         "regroup-issues", help="group existing findings into issues (backfill or config change)")
     regroup.add_argument("--org", required=True)
@@ -73,6 +86,30 @@ def main(argv: list[str] | None = None) -> int:
                 print(created.plaintext)
                 print(f"(prefix {created.prefix}; store this key now, it is not shown again)",
                       file=sys.stderr)
+            elif args.command == "dashboard-link":
+                from datetime import timedelta
+
+                from rootsignal_server.auth.sessions import create_login_link
+                from rootsignal_server.config import get_settings
+
+                ids = admin.find_tenant(conn, args.org, args.project, args.environment)
+                ttl = timedelta(minutes=get_settings().login_link_ttl_minutes)
+                try:
+                    token = create_login_link(conn, ids, scopes=args.scopes.split(","),
+                                              created_by=_actor(), ttl=ttl)
+                except ValueError as exc:
+                    raise admin.AdminError(str(exc)) from exc
+                # The token travels in the URL fragment, which browsers never send to servers.
+                print(f"{args.url.rstrip('/')}/login/link#token={token}")
+                print(f"(single use, expires in {ttl.total_seconds() / 60:.0f} min)",
+                      file=sys.stderr)
+            elif args.command == "revoke-sessions":
+                from rootsignal_server.auth.sessions import revoke_sessions
+
+                ids = admin.find_tenant(conn, args.org, args.project, args.environment)
+                count = revoke_sessions(conn, ids, actor=_actor(),
+                                        whole_project=args.all_environments)
+                print(f"revoked {count} session(s)")
             elif args.command == "regroup-issues":
                 from rootsignal_server.issues.grouping import regroup_project
 

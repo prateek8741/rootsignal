@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api, type TraceQuery } from "../api/client";
 import { Badge, Button, Code, EmptyState, ErrorBox, Loading, TraceStatusBadge } from "../components/ui";
 import { formatCost, formatDuration, formatRelative, formatTokens, shortId } from "../lib/format";
-import { useActiveConnection } from "../lib/connection";
+import { useSession } from "../lib/auth";
 
 const RANGES: Record<string, number | null> = { "1h": 1, "24h": 24, "7d": 24 * 7, all: null };
 
@@ -13,7 +13,7 @@ function sinceFor(range: string): string | undefined {
 }
 
 export function TracesPage() {
-  const { apiKey, context } = useActiveConnection();
+  const context = useSession();
   const [params, setParams] = useSearchParams();
   const status = params.get("status") ?? "";
   const agent = params.get("agent") ?? "";
@@ -24,11 +24,11 @@ export function TracesPage() {
   const filtered = Boolean(status || agent || version || range !== "all");
 
   const query = useInfiniteQuery({
-    queryKey: ["traces", apiKey, status, agent, version, range],
+    queryKey: ["traces", status, agent, version, range],
     queryFn: ({ pageParam }) => {
       const q: TraceQuery = { status, agent_name: agent, agent_version: version,
         since: sinceFor(range), cursor: pageParam, limit: 50 };
-      return api.traces(apiKey, q);
+      return api.traces(q);
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
