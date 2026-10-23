@@ -85,6 +85,7 @@ def test_otlp_export_sends_protobuf_with_bearer_key(backend: Any) -> None:
     assert names == {"invoke_agent agent", "execute_tool work"}
     resource = {a.key: a.value.string_value for a in request.resource_spans[0].resource.attributes}
     assert resource["service.name"] == "svc"
+    assert resource["rootsignal.sdk.redaction"] == "pattern"
     assert rs.stats().exported_spans == 2
 
 

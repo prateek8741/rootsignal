@@ -44,6 +44,8 @@ OP_RETRIEVAL = "retrieval"
 # --- Rootsignal ----------------------------------------------------------------
 RS_SPAN_KIND = "rootsignal.span.kind"
 RS_SDK_VERSION = "rootsignal.sdk.version"
+# Resource attribute: "pattern" when the SDK redacts payloads, "off" otherwise.
+RS_SDK_REDACTION = "rootsignal.sdk.redaction"
 RS_PROMPT_VERSION = "rootsignal.prompt.version"
 RS_USER_ID = "rootsignal.user.id"
 RS_RUN_INPUT = "rootsignal.run.input"

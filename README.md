@@ -2,14 +2,14 @@
 
 An AI agent reliability platform: **observe → detect → investigate → reproduce → fix → verify**. Working name; not trademark-checked.
 
-> **Status: Phase 1, increment 1 of 10.** The Python SDK and the database schema exist and are tested. There is **no ingest API yet** (increment 2), so the SDK has no Rootsignal server to send to. Until then, pass your own OpenTelemetry exporter to `rs.init(exporter=...)`. See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
+> **Status: Phase 1, increment 2 of 10.** SDK, schema, and an authenticated OTLP ingest + read API work end to end. No detectors, issues or dashboard yet. See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
 
 ## Layout
 
 ```
 sdk/python/      pip package `rootsignal`: OpenTelemetry-based tracing SDK
-server/          pip package `rootsignal_server`: models, Alembic migrations (API/worker to come)
-scripts/         dev setup (no containers), SDK overhead benchmark
+server/          pip package `rootsignal_server`: FastAPI ingest + read API, admin CLI, models, migrations
+scripts/         dev setup (no containers), SDK overhead benchmark, storage/throughput measurement
 docs/            competitive analysis, design, schema, roadmap
 ```
 
@@ -24,6 +24,17 @@ make bench     # SDK hot-path overhead
 ```
 
 Server integration tests run against `ROOTSIGNAL_TEST_DATABASE_URL` and **drop its `public` schema**. They refuse to run unless the database name ends in `_test`.
+
+## Run it
+
+```bash
+uv run rootsignal-server serve                     # http://127.0.0.1:8000, docs at /docs
+uv run rootsignal-server create-tenant --org acme --project support
+uv run rootsignal-server create-key --org acme --project support --name dev --scopes ingest,read
+export ROOTSIGNAL_API_KEY=rs_...                    # printed once by create-key
+# instrument and run your agent (below), then:
+curl -H "Authorization: Bearer $ROOTSIGNAL_API_KEY" http://127.0.0.1:8000/v1/traces
+```
 
 ## SDK in 30 seconds
 
@@ -55,6 +66,6 @@ Details: [docs/TRACE_SCHEMA.md](docs/TRACE_SCHEMA.md).
 
 ## Documents
 
-[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
+[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Cost model](docs/COST_MODEL.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
 
 License: not yet chosen.

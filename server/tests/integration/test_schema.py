@@ -156,3 +156,27 @@ def test_job_tenant_columns_are_both_set_or_both_null(conn: Connection) -> None:
     expect_integrity_error(conn, lambda: conn.execute(
         text("INSERT INTO jobs (org_id, kind) VALUES (:o, 'x')"), {"o": a.org_id}))
 
+
+
+@pytest.mark.parametrize(("column", "value"), [
+    ("redact_on_ingest", "'sometimes'"),
+    ("max_spans_per_day", "0"),
+    ("max_payload_bytes", "100"),
+])
+def test_project_policy_constraints(conn: Connection, column: str, value: str) -> None:
+    # Added by hand in migration 0002 (autogenerate misses CHECKs on existing tables).
+    a = make_tenant(conn, "a")
+    expect_integrity_error(conn, lambda: conn.execute(
+        text(f"UPDATE projects SET {column} = {value} WHERE id = :p"), {"p": a.project_id}))
+
+
+def test_engine_factory_pins_utc_sessions() -> None:
+    from rootsignal_server.config import Settings
+    from rootsignal_server.storage.db import make_engine
+
+    eng = make_engine(Settings(database_url=TEST_DATABASE_URL))
+    try:
+        with eng.connect() as c:
+            assert c.execute(text("SHOW timezone")).scalar_one() == "UTC"
+    finally:
+        eng.dispose()

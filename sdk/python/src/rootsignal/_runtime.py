@@ -113,6 +113,7 @@ def init(config: Config | None = None, *, exporter: SpanExporter | None = None,
             A.SERVICE_NAME: cfg.service_name,
             A.DEPLOYMENT_ENVIRONMENT: cfg.environment,
             A.RS_SDK_VERSION: __version__,
+            A.RS_SDK_REDACTION: "pattern" if cfg.redact_pii else "off",
             **cfg.extra_resource_attributes,
         })
         provider = TracerProvider(

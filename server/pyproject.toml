@@ -8,7 +8,15 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "alembic>=1.14",
     "pydantic-settings>=2.6",
+    "fastapi>=0.161.1",
+    "uvicorn[standard]>=0.54.0",
+    "opentelemetry-proto>=1.27",
+    "protobuf>=5",
+    "rootsignal",
 ]
+
+[project.scripts]
+rootsignal-server = "rootsignal_server.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -19,3 +27,7 @@ packages = ["src/rootsignal_server"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+pythonpath = ["tests"]
+
+[tool.uv.sources]
+rootsignal = { workspace = true }

@@ -1,6 +1,6 @@
 # Trace Schema
 
-Status: v0, implemented in increment 1 (SDK + database). Ingest normalisation (OTLP → these tables) is increment 2, so §5 is a specification that has no tests yet.
+Status: v0.1. SDK and tables since increment 1. Ingest normalisation (OTLP → tables, §5) since increment 2, tested for the `rootsignal` and `gen_ai` dialects. API rules are in [API_SPECIFICATION.md](API_SPECIFICATION.md).
 
 Sources of truth: `sdk/python/src/rootsignal/_attributes.py` (wire attributes) and `server/src/rootsignal_server/storage/models.py` (tables, migration `0001`).
 
@@ -13,7 +13,7 @@ Sources of truth: `sdk/python/src/rootsignal/_attributes.py` (wire attributes) a
 
 ## 2. Wire format
 
-- **Transport:** OTLP/HTTP, `POST {endpoint}/v1/traces`, protobuf (`application/x-protobuf`). JSON support on the server comes in increment 2.
+- **Transport:** OTLP/HTTP, `POST {endpoint}/v1/traces`. The SDK sends protobuf (`application/x-protobuf`). The server also accepts OTLP/JSON (hex IDs) and gzip.
 - **Auth:** `Authorization: Bearer <api key>`. The key determines the org, project and environment. Resource attributes such as `deployment.environment.name` are informational only.
 - **Batching and retry:** the OTel `BatchSpanProcessor` (default queue 2,048 spans, batch 256, 1 s schedule) and the OTLP exporter's built-in retry within `export_timeout_s` (default 5 s).
 - **Sampling:** head-based, `ParentBased(TraceIdRatioBased(sample_rate))`. A trace is kept or dropped as a whole. Head sampling can drop failing traces; tail sampling is a later item.
@@ -29,6 +29,7 @@ Sources of truth: `sdk/python/src/rootsignal/_attributes.py` (wire attributes) a
 | `service.name` | `Config.service_name` |
 | `deployment.environment.name` | `Config.environment` (informational) |
 | `rootsignal.sdk.version` | SDK version |
+| `rootsignal.sdk.redaction` | `pattern` if the SDK redacted payloads, `off` otherwise. The server uses it to set `payloads.redaction_state` and to decide whether to redact again (§5.3) |
 
 ### 3.2 All spans
 
@@ -152,19 +153,25 @@ Defined in migration `0001`. Common rules:
 | `events` (JSONB) | Span events (exceptions) |
 | `dialect ∈ {rootsignal, gen_ai, openinference, openllmetry, unknown}` | Which adapter normalised the span |
 
-Kind mapping for other dialects (increment 2; to be checked against recorded fixtures before it's relied on): spans that have only GenAI conventions map by `gen_ai.operation.name` (`chat`/`text_completion`/`generate_content` → `llm`, `execute_tool` → `tool`, `invoke_agent` → `agent`, `retrieval` → `retrieval`). OpenInference maps by `openinference.span.kind`. Anything unrecognised → `other`, keeping its raw attributes.
+Kind mapping for other dialects (implemented in increment 2; OpenInference/OpenLLMetry adapters still need recorded fixtures, increment 10): spans that have only GenAI conventions map by `gen_ai.operation.name` (`chat`/`text_completion`/`generate_content` → `llm`, `execute_tool` → `tool`, `invoke_agent` → `agent`, `retrieval` → `retrieval`). OpenInference maps by `openinference.span.kind`. Anything unrecognised → `other`, keeping its raw attributes.
 
 ### 5.3 `payloads`: PK `(project_id, sha256)`
 
-`body` (text), `byte_size`, `truncated`, `redaction_state ∈ {none, sdk, server, unknown}`, `content_type ∈ {text, json}`, `last_referenced_at` (for retention). Content-addressed and deduplicated **within a project only**, so no cross-tenant deduplication can leak whether another tenant stored the same content. Spans reference payloads without a foreign key, so retention can delete bodies independently; readers treat a missing body as expired.
+`body` (text, capped server-side at the project's `max_payload_bytes`, default 64 KiB), `byte_size`, `truncated` (set by the server cap or by the SDK's `truncated_fields`), `redaction_state ∈ {none, sdk, server, unknown}` (`sdk` from the resource attribute; `server` when the project's `redact_on_ingest` policy redacted it), `content_type ∈ {text, json}`, `last_referenced_at` (for retention). Content-addressed and deduplicated **within a project only**, so no cross-tenant deduplication can leak whether another tenant stored the same content. Spans reference payloads without a foreign key, so retention can delete bodies independently; readers treat a missing body as expired.
 
 ### 5.4 Tenancy and access tables
 
-`organizations`, `projects` (`retention_days` default 14), `environments`, `api_keys` (`prefix` shown to users, `key_hash` = SHA-256 of the full key, which is never stored; `scopes ⊆ {ingest, read, admin}`, non-empty; `revoked_at`).
+`organizations`, `projects` (`retention_days` default 14, not yet enforced; quotas `max_spans_per_day`, `max_ingest_bytes_per_day`, `max_payload_bytes`; `redact_on_ingest ∈ {always, if_not_sdk, never}`), `environments`, `api_keys` (`prefix` shown to users, `key_hash` = SHA-256 of the full key, which is never stored; `scopes ⊆ {ingest, read, admin}`, non-empty; `revoked_at`).
 
 ### 5.5 `jobs`
 
 Durable queue: `kind`, `payload` (JSONB), `status ∈ {queued, running, done, failed, dead}`, `priority`, `attempts`/`max_attempts`, `run_after`, `locked_at`/`locked_by`, `dedupe_key` (unique among `queued`/`running` jobs only). `org_id`/`project_id` are both set or both NULL (system jobs).
+
+### 5.6 `usage_daily` and `audit_events` (migration `0002`)
+
+`usage_daily`, keyed by `(project_id, day)` in UTC: `requests`, `spans_received`, `spans_accepted`, `bytes_received` (wire bytes) and `rejected_requests`. Quota checks lock and update this row inside the ingest transaction. `audit_events` is append-only: `actor`, `action` (`tenant.ensure`, `api_key.create`, `api_key.revoke`), `target`, `details`.
+
+`traces.unpriced_llm_call_count`: model calls with no price, so a `cost_usd` with this > 0 is a lower bound.
 
 ## 6. Versioning
 

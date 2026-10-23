@@ -57,7 +57,7 @@ sequenceDiagram
   SDK->>API: OTLP batch (API key)
   API->>API: auth → quota check → size limits → redact (if configured)
   API->>DB: normalise + upsert traces/spans/payloads, enqueue job(trace_completed)
-  API-->>SDK: 202 (partial-success counts)
+  API-->>SDK: 200 + OTLP partial_success (rejected span count)
   W->>DB: claim job (SKIP LOCKED)
   W->>W: run detectors on canonical Trace
   W->>DB: findings → fingerprint → upsert issue + occurrence

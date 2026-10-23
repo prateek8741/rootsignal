@@ -42,7 +42,9 @@ def engine() -> Iterator[Engine]:
     database = make_url(TEST_DATABASE_URL).database or ""
     if not database.endswith("_test"):
         pytest.exit(f"refusing to run destructive tests against database {database!r}", 2)
-    eng = create_engine(TEST_DATABASE_URL)
+    # A leaked transaction would otherwise make the next TRUNCATE wait forever.
+    eng = create_engine(TEST_DATABASE_URL,
+                        connect_args={"options": "-c lock_timeout=10s -c timezone=UTC"})
     reset_schema(eng)
     command.upgrade(alembic_config(TEST_DATABASE_URL), "head")
     yield eng
@@ -85,3 +87,19 @@ def make_tenant(conn: Connection, slug: str) -> Tenant:
         {"o": org_id, "p": project_id},
     ).scalar_one()
     return Tenant(org_id, project_id, environment_id)
+
+
+# ---------------------------------------------------------------------------
+# API fixtures. The API commits through its own connections, so these tests
+# can't use the rollback-per-test ``conn`` fixture; they truncate instead.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def clean_db(engine: Engine) -> Iterator[Engine]:
+    def truncate() -> None:
+        with engine.begin() as c:
+            c.execute(text("TRUNCATE organizations, jobs, audit_events RESTART IDENTITY CASCADE"))
+
+    truncate()
+    yield engine
+    truncate()

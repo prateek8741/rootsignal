@@ -9,7 +9,7 @@ never collide with, or overwrite, another tenant's rows.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -17,6 +17,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Double,
     ForeignKey,
@@ -50,6 +51,7 @@ TRACE_SOURCES = ("production", "replay")
 DIALECTS = ("rootsignal", "gen_ai", "openinference", "openllmetry", "unknown")
 REDACTION_STATES = ("none", "sdk", "server", "unknown")
 JOB_STATUSES = ("queued", "running", "done", "failed", "dead")
+REDACT_ON_INGEST = ("always", "if_not_sdk", "never")
 API_KEY_SCOPES = ("ingest", "read", "admin")
 
 
@@ -106,6 +108,9 @@ class Project(Base):
         UniqueConstraint("org_id", "slug"),
         UniqueConstraint("org_id", "id"),  # target of tenant composite FKs
         CheckConstraint("retention_days > 0", name="retention_positive"),
+        CheckConstraint("max_spans_per_day > 0 AND max_ingest_bytes_per_day > 0 "
+                        "AND max_payload_bytes >= 1024", name="quotas_positive"),
+        CheckConstraint(_in("redact_on_ingest", REDACT_ON_INGEST), name="redact_on_ingest"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -114,6 +119,16 @@ class Project(Base):
     slug: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     retention_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="14")
+    # Quotas and ingest policy; see docs/COST_MODEL.md for how defaults were chosen.
+    max_spans_per_day: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="100000")
+    max_ingest_bytes_per_day: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=str(1024**3))
+    max_payload_bytes: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="65536")
+    # Server-side redaction: always, only when the SDK didn't redact, or never.
+    redact_on_ingest: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="if_not_sdk")
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -200,6 +215,9 @@ class Trace(Base):
     input_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     output_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(14, 6))
+    # Model calls with no price: cost_usd is a lower bound when this is > 0.
+    unpriced_llm_call_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0")
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _created_at()
@@ -221,6 +239,11 @@ class Span(Base):
               postgresql_where=text("kind = 'tool'")),
         Index("ix_spans_project_errors", "project_id", "started_at",
               postgresql_where=text("status = 'error'")),
+        # Payload visibility checks look spans up by payload hash.
+        Index("ix_spans_project_input_payload", "project_id", "input_payload_hash",
+              postgresql_where=text("input_payload_hash IS NOT NULL")),
+        Index("ix_spans_project_output_payload", "project_id", "output_payload_hash",
+              postgresql_where=text("output_payload_hash IS NOT NULL")),
         *_tenant_fks(environment=True),
     )
 
@@ -283,6 +306,50 @@ class Payload(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = _created_at()
     last_referenced_at: Mapped[datetime] = _created_at()
+
+
+# --------------------------------------------------------------------------
+# Usage accounting and audit
+# --------------------------------------------------------------------------
+
+class UsageDaily(Base):
+    """Per-project, per-UTC-day ingest counters used for quotas and cost tracking."""
+
+    __tablename__ = "usage_daily"
+    __table_args__ = (*_tenant_fks(environment=False),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    org_id: Mapped[uuid.UUID] = _org_id()
+    requests: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    spans_received: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    spans_accepted: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    bytes_received: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    rejected_requests: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default="0")
+
+
+class AuditEvent(Base):
+    """Append-only record of security-relevant actions (key creation, revocation, ...)."""
+
+    __tablename__ = "audit_events"
+    __table_args__ = (
+        CheckConstraint("project_id IS NULL OR org_id IS NOT NULL", name="tenant_pair"),
+        ForeignKeyConstraint(["org_id", "project_id"], ["projects.org_id", "projects.id"],
+                             ondelete="CASCADE"),
+        Index("ix_audit_events_org_created", "org_id", text("created_at DESC")),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    actor: Mapped[str] = mapped_column(Text, nullable=False)
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    target: Mapped[str | None] = mapped_column(Text)
+    details: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    created_at: Mapped[datetime] = _created_at()
 
 
 # --------------------------------------------------------------------------
