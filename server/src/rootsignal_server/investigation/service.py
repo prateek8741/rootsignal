@@ -34,6 +34,7 @@ from rootsignal_server.investigation.model import Claim, EvidenceBundle
 from rootsignal_server.investigation.validate import Rejected, validate
 from rootsignal_server.issues.grouping import record_event
 from rootsignal_server.jobs.queue import ClaimedJob
+from rootsignal_server.replay.history import verified_claims
 
 logger = logging.getLogger("rootsignal.investigation")
 INVESTIGATE = "investigate"
@@ -146,6 +147,8 @@ def make_handlers(settings: Settings | None = None,
         if rejected:  # a rule citing something it didn't collect is a bug: make it visible
             logger.error("investigation %s: %d rule claim(s) rejected: %s", investigation_id,
                          len(rejected), [r.reason for r in rejected])
+        # Fixes already verified by replay (source 'replay', never from rules or the LLM).
+        claims += verified_claims(conn, inv.project_id, inv.issue_id)
         _insert_claims(conn, investigation_id, claims, 0)
         llm_status, llm_error = "not_requested", None
         if inv.use_llm:

@@ -75,6 +75,16 @@
             "title": "Issue Id",
             "type": "string"
           },
+          "latest_replay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplayBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -82,6 +92,17 @@
           "replayable_recorded": {
             "title": "Replayable Recorded",
             "type": "boolean"
+          },
+          "reproduced_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplayBrief"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "latest replay that reproduced the failure"
           },
           "source_trace_id": {
             "title": "Source Trace Id",
@@ -100,6 +121,17 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "verified_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplayBrief"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "set only while the case is passing: the replay that verified the fix"
           },
           "version": {
             "title": "Version",
@@ -256,6 +288,16 @@
             "title": "Issue Id",
             "type": "string"
           },
+          "latest_replay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplayBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -263,6 +305,17 @@
           "replayable_recorded": {
             "title": "Replayable Recorded",
             "type": "boolean"
+          },
+          "reproduced_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplayBrief"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "latest replay that reproduced the failure"
           },
           "source_trace_id": {
             "title": "Source Trace Id",
@@ -276,6 +329,17 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "verified_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplayBrief"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "set only while the case is passing: the replay that verified the fix"
           },
           "warning_count": {
             "title": "Warning Count",
@@ -1411,6 +1475,73 @@
           "redaction_state"
         ],
         "title": "PayloadOut",
+        "type": "object"
+      },
+      "ReplayBrief": {
+        "properties": {
+          "agent_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "agent version seen in the replay trace",
+            "title": "Agent Version"
+          },
+          "evaluated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated At"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "purpose",
+          "mode",
+          "verdict",
+          "trace_id",
+          "evaluated_at",
+          "agent_version"
+        ],
+        "title": "ReplayBrief",
         "type": "object"
       },
       "ReplayReportBody": {

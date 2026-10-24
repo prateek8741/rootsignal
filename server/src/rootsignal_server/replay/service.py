@@ -19,6 +19,7 @@ from rootsignal_server.auth.keys import TenantContext
 from rootsignal_server.detection.store import load_config, load_trace
 from rootsignal_server.issues.grouping import record_event
 from rootsignal_server.regression.spec import CaseSpec
+from rootsignal_server.replay.history import add_to_latest_investigation
 from rootsignal_server.replay.verdict import judge, next_case_status
 
 TRACE_ID = re.compile(r"^[0-9a-f]{32}$")
@@ -128,6 +129,8 @@ def finalize(conn: Connection, run_id: uuid.UUID) -> bool:
                           "purpose": run["purpose"], "mode": run["mode"],
                           "verdict": outcome.verdict, "case_status": new_status,
                           "trace_id": run["trace_id"]})
+    if run["purpose"] == "verify" and outcome.verdict == "passing" and new_status == "passing":
+        add_to_latest_investigation(conn, run["project_id"], run["issue_id"], run["case_id"])
     return True
 
 

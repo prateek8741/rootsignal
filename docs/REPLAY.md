@@ -19,7 +19,7 @@ rootsignal replay <case_id> --purpose verify --stubs my_agent.replay_stubs
 
 The worker must be running, because the verdict waits for detection on the replay trace.
 
-To try it with the bundled example agent (`examples/`, a scripted support agent with a retry-loop bug in v1 and the fix in v2):
+`make demo` runs the whole scenario automatically, from an empty database (see the README). To try it by hand with the bundled example agent (`examples/`, a scripted support agent with a retry-loop bug in v1 and the fix in v2):
 
 ```bash
 uv run python -m rootsignal_examples.support_agent          # a "production" v1 run → issue
@@ -123,7 +123,7 @@ Each assertion is evaluated only if the replay mode can provide what it `require
 | verify | failing | `failing` (if it ever reproduced) |
 | any | diverged / inconclusive / crashed / broken | unchanged |
 
-Every evaluated run also adds a `replayed` event to the issue's history.
+Every evaluated run also adds a `replayed` event to the issue's history. When a verify run makes the case `passing`, a `verified` claim (source `replay`) is added to the issue's latest investigation ([INVESTIGATIONS.md §1.1](INVESTIGATIONS.md#11-verified-fixes)). The issue page then shows **Fix verified by replay**, and resolving the issue pre-fills the agent version that passed.
 
 ## 5. Safety
 

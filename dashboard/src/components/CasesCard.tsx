@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useSession } from "../lib/auth";
 import { formatRelative } from "../lib/format";
+import { caseVerification } from "../lib/verification";
 import { Badge, Button, Card, ErrorBox, Loading } from "./ui";
 
 /** Regression cases built from this issue, and creating one from its worst trace. */
@@ -35,17 +36,24 @@ export function CasesCard({ issueId }: { issueId: string }) {
           </p>
         ) : (
           <ul className="divide-y divide-slate-100 text-sm">
-            {cases.data.items.map((c) => (
+            {cases.data.items.map((c) => {
+              const verification = caseVerification(c);
+              return (
               <li key={c.id} className="flex flex-wrap items-center gap-2 py-2">
                 <Link to={`/cases/${c.id}`} className="font-medium text-sky-700 hover:underline">{c.name}</Link>
-                <Badge>{c.status}</Badge>
+                <Badge>{c.status.replace("_", " ")}</Badge>
                 <Badge>v{c.current_version}</Badge>
                 <span className="text-xs text-slate-500">{c.assertion_count} assertion(s)</span>
                 {c.replayable_recorded ? <Badge tone="green">replayable</Badge>
                   : <Badge tone="amber" title="See the case's warnings">needs attention</Badge>}
                 <span className="ml-auto text-xs text-slate-500">{formatRelative(c.created_at)}</span>
+                <p className="w-full text-xs">
+                  <Badge tone={verification.tone}>{verification.text}</Badge>
+                  {c.latest_replay?.evaluated_at && <span className="ml-2 text-slate-500">last replay {formatRelative(c.latest_replay.evaluated_at)}</span>}
+                </p>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
     </Card>

@@ -207,3 +207,50 @@ def test_scopes_tenants_and_preconditions(stack: Stack) -> None:
     assert blocked.status_code == 422 and "entrypoint" in blocked.json()["error"]["message"]
     fake_run = stack.api("POST", f"/v1/replay-runs/{uuid.uuid4()}/report", json={})
     assert fake_run.status_code == 404
+
+
+def investigate(stack: Stack, issue_id: str) -> dict[str, Any]:
+    started = stack.api("POST", f"/v1/issues/{issue_id}/investigations", json={"use_llm": False})
+    assert started.status_code in (200, 201, 202), started.text
+    investigation_id = started.json()["id"]
+    wait_for(stack, "SELECT 1 FROM investigations WHERE id = :i AND status = 'completed'",
+             i=investigation_id)
+    detail: dict[str, Any] = stack.api("GET", f"/v1/investigations/{investigation_id}").json()
+    return detail
+
+
+def verified(investigation: dict[str, Any]) -> list[dict[str, Any]]:
+    return [c for c in investigation["claims"] if c["kind"] == "verified"]
+
+
+def test_a_verified_fix_closes_the_loop_and_a_regression_reopens_it(stack: Stack) -> None:
+    record_production_run(stack)
+    case_id = make_case(stack, "repeated_tool_call")
+    issue_id = stack.api("GET", f"/v1/regression-cases/{case_id}").json()["issue_id"]
+    first = investigate(stack, issue_id)
+    assert verified(first) == []
+
+    assert stack.replay(case_id, "--purpose", "reproduce").returncode == 0
+    assert stack.replay(case_id, "--purpose", "verify", fixed=True).returncode == 0
+
+    # The passing verify adds a 'verified' claim (source replay) to the latest investigation.
+    claims = verified(stack.api("GET", f"/v1/investigations/{first['id']}").json())
+    assert len(claims) == 1 and claims[0]["source"] == "replay"
+    assert "reproduced the failure on agent v1 and passes on agent v2" in claims[0]["statement"]
+    assert {r["type"] for r in claims[0]["refs"]} == {"trace", "case"}
+    # ...and a new investigation includes it from the start.
+    assert [c["statement"] for c in verified(investigate(stack, issue_id))] == \
+        [claims[0]["statement"]]
+
+    case = stack.api("GET", f"/v1/issues/{issue_id}/regression-cases").json()["items"][0]
+    assert case["status"] == "passing"
+    assert (case["reproduced_by"]["agent_version"], case["verified_by"]["agent_version"]) == \
+        ("v1", "v2")
+    assert case["latest_replay"]["verdict"] == "passing"
+
+    # The bug comes back (v1 code again): the case fails and nothing claims a verified fix.
+    assert stack.replay(case_id, "--purpose", "verify").returncode == 1
+    case = stack.api("GET", f"/v1/issues/{issue_id}/regression-cases").json()["items"][0]
+    assert case["status"] == "failing" and case["verified_by"] is None
+    assert case["latest_replay"]["verdict"] == "failing"
+    assert verified(investigate(stack, issue_id)) == []

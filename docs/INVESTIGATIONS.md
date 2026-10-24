@@ -13,9 +13,13 @@ An investigation answers "what do we know about this issue, and what should we c
 | `alternative` | A competing explanation to rule out | Rules, LLM | yes |
 | `missing_evidence` | What would tell hypotheses apart | Rules, LLM | no |
 | `next_step` | What to do next | Rules, LLM | no |
-| `verified` | A cause confirmed by a passing replay | Replay only (increment 8) | yes |
+| `verified` | A fix confirmed by replay: the regression case reproduced the failure on the unfixed code, then passed after the fix | Replay only | yes |
 
-References point into the evidence bundle: `span` (trace + span ID), `trace`, `finding` (+ trace ID), or `stat` (a named statistic). A **validator** drops any claim whose references don't resolve, whose kind its source may not assert, or which duplicates another, and records each rejection with its reason. The same rules are also enforced by database CHECK constraints (`observed` ⇒ source `rules`; `verified` ⇒ source `replay`).
+References point into the evidence bundle: `span` (trace + span ID), `trace`, `finding` (+ trace ID), or `stat` (a named statistic). `verified` claims cite the replay traces and the `case`. A **validator** drops any claim whose references don't resolve, whose kind its source may not assert, or which duplicates another, and records each rejection with its reason. The same rules are also enforced by database CHECK constraints (`observed` ⇒ source `rules`; `verified` ⇒ source `replay`).
+
+### 1.1 Verified fixes
+
+`verified` claims are written only by replay (`server/src/rootsignal_server/replay/history.py`), never by rules or the LLM, and a DB CHECK enforces it. When a `--purpose verify` replay passes and the case becomes `passing` (which requires an earlier reproduction, see [REPLAY.md §4](REPLAY.md#4-verdicts)), the claim is appended to the issue's latest completed investigation. Every new investigation also includes a claim for each case that is currently `passing`, so a case that fails again stops producing one. The claim states what was shown and nothing more: *"Fix verified by replay: regression case “…” reproduced the failure on agent v1 and passes on agent v2 (recorded replay)."* It does not say which hypothesis was the cause.
 
 ## 2. Pipeline
 

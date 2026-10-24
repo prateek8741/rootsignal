@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppRoutes } from "../App";
-import type { Investigation } from "../api/client";
+import type { CaseSummary, Investigation, ReplayBrief } from "../api/client";
 import { issueSummary, span, traceSummary } from "../test/fixtures";
 import { CONTEXT, mockApi, renderWithProviders } from "../test/render";
 
@@ -257,8 +257,79 @@ describe("issues", () => {
     const hypotheses = screen.getByRole("region", { name: "Hypotheses" });
     expect(within(hypotheses).getByText("AI")).toBeInTheDocument();
     expect(screen.getByText("1 suggestion(s) discarded by validation")).toBeInTheDocument();
-    expect(screen.getByText(/Nothing here is a confirmed root cause/)).toBeInTheDocument();
+    expect(screen.getByText(/Hypotheses aren't confirmed causes/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Verified" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Also ask the AI model")).toBeInTheDocument();
+  });
+
+  const CASE_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
+  const run = (overrides: Partial<ReplayBrief>): ReplayBrief => ({
+    run_id: "r-1", purpose: "verify", mode: "recorded", verdict: "passing", trace_id: "e".repeat(32),
+    evaluated_at: "2026-10-23T10:10:00Z", agent_version: "v2", ...overrides,
+  });
+  const caseSummary = (overrides: Partial<CaseSummary>): CaseSummary => ({
+    id: CASE_ID, issue_id: issueSummary().id, source_trace_id: "c".repeat(32), name: "retry loop",
+    status: "draft", current_version: 1, entrypoint: "agent:handle", replayable_recorded: true,
+    assertion_count: 3, warning_count: 0, created_by: "key:rs_abc", created_at: "2026-10-23T10:00:00Z",
+    updated_at: "2026-10-23T10:00:00Z", latest_replay: null, reproduced_by: null, verified_by: null, ...overrides,
+  });
+  const reproduced = run({ purpose: "reproduce", verdict: "failing", agent_version: "v1" });
+
+  it("closes the loop: a verified fix, its replay history and a pre-filled resolve", async () => {
+    const passing = caseSummary({ status: "passing", latest_replay: run({}), reproduced_by: reproduced, verified_by: run({}) });
+    const events = [{ kind: "replayed", actor: "key:rs_abc", from_status: null, to_status: null, created_at: "2026-10-23T10:10:00Z",
+      details: { purpose: "verify", verdict: "passing", case_id: CASE_ID, trace_id: "e".repeat(32) } }];
+    const fetchMock = mockApi(issueRoutes((url, init) => {
+      if (url.pathname.endsWith("/regression-cases") && !init?.method) return { body: { items: [passing] } };
+      if (url.pathname.endsWith("/status") && init?.method === "POST") return { body: issueSummary({ status: "resolved" }) };
+      if (url.pathname === `/v1/issues/${issueSummary().id}`) return { body: { issue: issueSummary(), versions: [], events, recent_occurrences: [] } };
+      return undefined;
+    }));
+    renderWithProviders(<AppRoutes />, { route: `/issues/${issueSummary().id}` });
+    expect(await screen.findByRole("status", { name: "Fix verification" })).toHaveTextContent("Fix verified by replay (recorded mode, agent v2)");
+    expect(screen.getByText("Fix verified by replay on agent v2 (recorded mode)")).toBeInTheDocument();
+    const replayed = screen.getByText("Replayed").closest("li") as HTMLElement;
+    expect(replayed).toHaveTextContent("verify → passing");
+    expect(within(replayed).getByRole("link", { name: "case" })).toHaveAttribute("href", `/cases/${CASE_ID}`);
+
+    await userEvent.click(screen.getByRole("button", { name: "Resolve…" }));
+    expect(screen.getByPlaceholderText("v2")).toHaveValue("v2");
+    expect(screen.getByText(/replay verified the fix on agent v2/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Mark resolved" }));
+    await waitFor(() => {
+      const [post] = calls(fetchMock, "POST", `/v1/issues/${issueSummary().id}/status`);
+      expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({ status: "resolved", fixed_in_version: "v2" });
+    });
+  });
+
+  it.each([
+    [caseSummary({ status: "reproduced", latest_replay: reproduced, reproduced_by: reproduced }), "Reproduced by replay on agent v1: fix not verified yet"],
+    [caseSummary({ status: "failing", latest_replay: run({ verdict: "failing", agent_version: "v3" }), reproduced_by: reproduced }), "Still failing on replay on agent v3: fix not verified"],
+    [caseSummary({ status: "not_reproduced", latest_replay: run({ purpose: "reproduce" }) }), "Replay didn't reproduce the failure: can't verify a fix"],
+    [caseSummary({ latest_replay: run({ verdict: "diverged" }) }), "Latest replay diverged: nothing concluded"],
+    [caseSummary({}), "Not replayed yet"],
+  ])("never claims a verified fix unless the case is passing (%#)", async (item, text) => {
+    mockApi(issueRoutes((url, init) => url.pathname.endsWith("/regression-cases") && !init?.method ? { body: { items: [item] } } : undefined));
+    renderWithProviders(<AppRoutes />, { route: `/issues/${issueSummary().id}` });
+    expect(await screen.findByText(text)).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Fix verification" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Resolve…" }));
+    expect(screen.getByPlaceholderText("v2")).toHaveValue("");
+  });
+
+  it("shows verified claims from replay with a link to the case", async () => {
+    const withVerified: Investigation = { ...investigation, claims: [...investigation.claims,
+      { kind: "verified", source: "replay", statement: "Fix verified by replay: regression case 'retry loop' reproduced the failure on agent v1 and passes on agent v2 (recorded replay).",
+        refs: [{ type: "trace", trace_id: "e".repeat(32) }, { type: "case", case_id: CASE_ID }] }] };
+    mockApi(issueRoutes((url) => {
+      if (url.pathname.endsWith("/investigations")) return { body: { items: [withVerified] } };
+      if (url.pathname === "/v1/investigations/inv-1") return { body: withVerified };
+      return undefined;
+    }));
+    renderWithProviders(<AppRoutes />, { route: `/issues/${issueSummary().id}` });
+    const section = await screen.findByRole("region", { name: "Verified" });
+    expect(within(section).getByText("replay")).toBeInTheDocument();
+    expect(within(section).getByRole("link", { name: "regression case" })).toHaveAttribute("href", `/cases/${CASE_ID}`);
   });
 
   it("starts an investigation, hiding the AI option when it isn't available", async () => {

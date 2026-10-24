@@ -63,7 +63,7 @@ Grouping runs inside the detection job's transaction. It takes transaction-scope
 
 ## 5. History and actors
 
-`issue_events.kind ∈ {created, status_changed, regressed, straggler}`, with `actor` = `system` or `api_key:<prefix>` (the 11-character display prefix, never the key). Status changes can carry a `note`. Investigations (increment 6) will add their own entries.
+`issue_events.kind ∈ {created, status_changed, regressed, straggler, investigated, replayed}`, with `actor` = `system`, `api_key:<prefix>` (the 11-character display prefix, never the key) or `session:<prefix>`. Status changes can carry a `note`. `investigated` records a completed investigation; `replayed` records an evaluated replay of one of the issue's regression cases (purpose, verdict, case, replay trace).
 
 ## 6. Not yet
 

@@ -1,7 +1,10 @@
-.PHONY: setup migrate test test-sdk test-server test-dashboard lint typecheck check bench serve worker dashboard seed-demo measure-ingest eval-detectors
+.PHONY: setup demo migrate test test-sdk test-server test-dashboard lint typecheck check bench serve worker dashboard seed-demo measure-ingest eval-detectors
 
 setup:
 	./scripts/dev_setup.sh
+
+demo:
+	./scripts/demo.sh
 
 migrate:
 	cd server && uv run alembic upgrade head

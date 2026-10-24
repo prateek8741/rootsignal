@@ -7,7 +7,7 @@ A claim is a typed statement with references into the evidence bundle:
   Must cite the evidence it rests on.
 * ``missing_evidence``: what we'd need to tell hypotheses apart.
 * ``next_step``: what to do next.
-* ``verified``: reserved for a passing replay (increment 8); never produced here.
+* ``verified``: a fix confirmed by replay. Produced only by ``replay.history``.
 """
 
 from __future__ import annotations

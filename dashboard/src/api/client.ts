@@ -23,6 +23,7 @@ export type CaseSummary = Schemas["CaseSummary"];
 export type CaseDetail = Schemas["CaseDetail"];
 export type CaseList = Schemas["CaseList"];
 export type ReplayRun = Schemas["ReplayRunOut"];
+export type ReplayBrief = Schemas["ReplayBrief"];
 export type ReplayRunList = Schemas["ReplayRunList"];
 
 /** The regression case spec (see server/src/rootsignal_server/regression/spec.py). */

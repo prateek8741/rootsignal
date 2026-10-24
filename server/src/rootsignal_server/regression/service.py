@@ -11,6 +11,7 @@ from sqlalchemy import Connection, text
 from rootsignal_server.auth.keys import TenantContext
 from rootsignal_server.regression.builder import CaseSourceError, assess, build_spec
 from rootsignal_server.regression.spec import CaseInput, CaseSpec
+from rootsignal_server.replay.history import case_replay_state
 
 UNSET: Any = object()
 
@@ -110,14 +111,18 @@ _CASE_COLUMNS = ("c.id, c.issue_id, c.source_trace_id, c.name, c.status, c.curre
                  "c.created_by, c.created_at, c.updated_at")
 
 
-def _summary(row: Any) -> dict[str, Any]:
+def _summary(row: Any, replays: dict[str, Any]) -> dict[str, Any]:
     spec = row["spec"]
     data = {k: row[k] for k in ("id", "issue_id", "source_trace_id", "name", "status",
                                 "current_version", "created_by", "created_at", "updated_at")}
     return {**data, "entrypoint": spec["entrypoint"],
             "replayable_recorded": spec["quality"]["replayable_recorded"],
             "assertion_count": sum(1 for a in spec["assertions"] if a["enabled"]),
-            "warning_count": len(spec["quality"]["warnings"])}
+            "warning_count": len(spec["quality"]["warnings"]),
+            "latest_replay": replays["latest_replay"],
+            "reproduced_by": replays["reproduced_by"],
+            # Only a passing case has a verified fix (it reproduced before it passed).
+            "verified_by": replays["verified_by"] if row["status"] == "passing" else None}
 
 
 def list_cases(conn: Connection, tenant: TenantContext, *, issue_id: uuid.UUID | None = None,
@@ -131,7 +136,8 @@ def list_cases(conn: Connection, tenant: TenantContext, *, issue_id: uuid.UUID |
         "ORDER BY c.created_at DESC LIMIT 200"),
         {"p": tenant.project_id, "e": tenant.environment_id, "i": issue_id,
          "s": status}).mappings().all()
-    return [_summary(r) for r in rows]
+    replays = case_replay_state(conn, [r["id"] for r in rows])
+    return [_summary(r, replays[r["id"]]) for r in rows]
 
 
 def get_case(conn: Connection, tenant: TenantContext, case_id: uuid.UUID,
@@ -148,7 +154,8 @@ def get_case(conn: Connection, tenant: TenantContext, case_id: uuid.UUID,
     versions = conn.execute(text(
         "SELECT version, created_by, created_at, change_note FROM regression_case_versions "
         "WHERE case_id = :c ORDER BY version DESC"), {"c": case_id}).mappings().all()
-    return {**_summary(row), "version": row["version"], "spec": row["spec"],
+    replays = case_replay_state(conn, [row["id"]])[row["id"]]
+    return {**_summary(row, replays), "version": row["version"], "spec": row["spec"],
             "versions": [dict(v) for v in versions]}
 
 

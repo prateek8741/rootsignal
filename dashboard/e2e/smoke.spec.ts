@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-// Needs: API + worker running, demo data seeded, `npm run dev`, and DASHBOARD_LOGIN_URL set
-// to a fresh one-time link (`rootsignal-server dashboard-link --org demo --project agents`).
+// Needs: API + worker running with data (`./scripts/demo.sh --keep`, or `make seed-demo`), `npm run dev`,
+// and DASHBOARD_LOGIN_URL set to a fresh one-time link (printed by both, or
+// `rootsignal-server dashboard-link --org demo --project agents`).
 const loginUrl = process.env.DASHBOARD_LOGIN_URL ?? "";
 
 test("sign in with a link, inspect a failing trace, investigate its issue", async ({ page, context }) => {
