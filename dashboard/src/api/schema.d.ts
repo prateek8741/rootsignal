@@ -372,10 +372,13 @@ export interface components {
              * Format: uuid
              */
             issue_id: string;
+            latest_replay?: components["schemas"]["ReplayBrief"] | null;
             /** Name */
             name: string;
             /** Replayable Recorded */
             replayable_recorded: boolean;
+            /** @description latest replay that reproduced the failure */
+            reproduced_by?: components["schemas"]["ReplayBrief"] | null;
             /** Source Trace Id */
             source_trace_id: string;
             /** Spec */
@@ -389,6 +392,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** @description set only while the case is passing: the replay that verified the fix */
+            verified_by?: components["schemas"]["ReplayBrief"] | null;
             /** Version */
             version: number;
             /** Versions */
@@ -439,10 +444,13 @@ export interface components {
              * Format: uuid
              */
             issue_id: string;
+            latest_replay?: components["schemas"]["ReplayBrief"] | null;
             /** Name */
             name: string;
             /** Replayable Recorded */
             replayable_recorded: boolean;
+            /** @description latest replay that reproduced the failure */
+            reproduced_by?: components["schemas"]["ReplayBrief"] | null;
             /** Source Trace Id */
             source_trace_id: string;
             /** Status */
@@ -452,6 +460,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** @description set only while the case is passing: the replay that verified the fix */
+            verified_by?: components["schemas"]["ReplayBrief"] | null;
             /** Warning Count */
             warning_count: number;
         };
@@ -848,6 +858,29 @@ export interface components {
             sha256: string;
             /** Truncated */
             truncated: boolean;
+        };
+        /** ReplayBrief */
+        ReplayBrief: {
+            /**
+             * Agent Version
+             * @description agent version seen in the replay trace
+             */
+            agent_version: string | null;
+            /** Evaluated At */
+            evaluated_at: string | null;
+            /** Mode */
+            mode: string;
+            /** Purpose */
+            purpose: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Trace Id */
+            trace_id: string | null;
+            /** Verdict */
+            verdict: string;
         };
         /** ReplayReportBody */
         ReplayReportBody: {

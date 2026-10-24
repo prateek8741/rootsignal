@@ -255,6 +255,16 @@ class CaseEditBody(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+class ReplayBrief(BaseModel):
+    run_id: uuid.UUID
+    purpose: str
+    mode: str
+    verdict: str
+    trace_id: str | None
+    evaluated_at: datetime | None
+    agent_version: str | None = Field(description="agent version seen in the replay trace")
+
+
 class CaseSummary(BaseModel):
     id: uuid.UUID
     issue_id: uuid.UUID
@@ -269,6 +279,11 @@ class CaseSummary(BaseModel):
     created_by: str
     created_at: datetime
     updated_at: datetime
+    latest_replay: ReplayBrief | None = None
+    reproduced_by: ReplayBrief | None = Field(
+        None, description="latest replay that reproduced the failure")
+    verified_by: ReplayBrief | None = Field(
+        None, description="set only while the case is passing: the replay that verified the fix")
 
 
 class CaseVersionOut(BaseModel):

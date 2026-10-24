@@ -6,9 +6,10 @@ import { InvestigationPanel } from "../components/InvestigationPanel";
 import { IssueActions } from "../components/IssueActions";
 import { Badge, Button, Card, ErrorBox, IssueStatusBadge, Loading, SeverityBadge, Stat } from "../components/ui";
 import { formatRelative, formatTime, shortId } from "../lib/format";
+import { verifiedFix } from "../lib/verification";
 
 const EVENT_TEXT: Record<string, string> = {
-  created: "Issue created", status_changed: "Status changed", investigated: "Investigated",
+  created: "Issue created", status_changed: "Status changed", investigated: "Investigated", replayed: "Replayed",
   regressed: "Reopened as a regression", straggler: "Occurrence from an old version (straggler)",
 };
 
@@ -23,6 +24,11 @@ function EventRow({ event }: { event: IssueEvent }) {
           <span className="text-slate-600"> · {event.from_status} → {event.to_status}</span>
         )}
         <span className="text-slate-500"> · by {event.actor}</span>
+        {event.kind === "replayed" && (
+          <span className="text-slate-600"> · {details["purpose"]} → <span className="font-medium">{details["verdict"]}</span>
+            {details["case_id"] && <> · <Link to={`/cases/${details["case_id"]}`} className="text-sky-700 hover:underline">case</Link></>}
+          </span>
+        )}
         {details["agent_version"] && <span className="text-slate-600"> · version {details["agent_version"]}</span>}
         {details["fixed_in_version"] && <span className="text-slate-600"> · fixed in {details["fixed_in_version"]}</span>}
         {details["note"] && <p className="mt-0.5 text-slate-700">“{details["note"]}”</p>}
@@ -37,6 +43,7 @@ function EventRow({ event }: { event: IssueEvent }) {
 export function IssueDetailPage() {
   const { issueId = "" } = useParams();
   const query = useQuery({ queryKey: ["issue", issueId], queryFn: () => api.issue(issueId) });
+  const cases = useQuery({ queryKey: ["issue", issueId, "cases"], queryFn: () => api.issueCases(issueId) });
   const occurrences = useInfiniteQuery({
     queryKey: ["issue", issueId, "occurrences"],
     queryFn: ({ pageParam }) => api.occurrences(issueId, pageParam),
@@ -47,6 +54,7 @@ export function IssueDetailPage() {
   if (query.isPending) return <Loading />;
   if (query.isError) return <ErrorBox error={query.error} />;
   const { issue, versions, events } = query.data;
+  const fix = verifiedFix(cases.data?.items ?? []);
   const representative = [
     ["First", issue.first_trace_id], ["Latest", issue.latest_trace_id], ["Worst", issue.worst_trace_id],
   ] as const;
@@ -61,6 +69,13 @@ export function IssueDetailPage() {
           <IssueStatusBadge status={issue.status} regression={issue.is_regression} />
         </h1>
         <p className="mt-1 text-sm text-slate-600">{issue.description}</p>
+        {fix && (
+          <p role="status" aria-label="Fix verification" className="mt-2 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900 ring-1 ring-emerald-200">
+            ✓ Fix verified by replay ({fix.run.mode} mode{fix.run.agent_version ? `, agent ${fix.run.agent_version}` : ""}):
+            the regression case reproduced the failure, then passed. <Link to={`/cases/${fix.caseId}`} className="underline">Open case</Link>
+            {issue.status !== "resolved" && <span> · Resolve the issue when this version ships.</span>}
+          </p>
+        )}
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card>
@@ -83,7 +98,7 @@ export function IssueDetailPage() {
             ))}
           </div>
         </Card>
-        <Card title="Actions"><IssueActions issue={issue} /></Card>
+        <Card title="Actions"><IssueActions issue={issue} verifiedVersion={fix?.run.agent_version} /></Card>
       </div>
       <InvestigationPanel issueId={issue.id} />
       <CasesCard issueId={issue.id} />

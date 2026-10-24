@@ -5,7 +5,7 @@ import { useSession } from "../lib/auth";
 import { Button, ErrorBox } from "./ui";
 
 /** Resolve / ignore / reopen. Requires the key's `triage` scope (enforced by the API). */
-export function IssueActions({ issue }: { issue: IssueSummary }) {
+export function IssueActions({ issue, verifiedVersion }: { issue: IssueSummary; verifiedVersion?: string | null }) {
   const context = useSession();
   const queryClient = useQueryClient();
   const canTriage = context.scopes.includes("triage");
@@ -30,7 +30,10 @@ export function IssueActions({ issue }: { issue: IssueSummary }) {
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         {issue.status !== "resolved" && (
-          <Button variant="primary" disabled={disabled} title={why} onClick={() => setResolving(!resolving)}>
+          <Button variant="primary" disabled={disabled} title={why} onClick={() => {
+            if (!resolving && !fixedIn && verifiedVersion) setFixedIn(verifiedVersion);
+            setResolving(!resolving);
+          }}>
             Resolve…
           </Button>
         )}
@@ -57,6 +60,9 @@ export function IssueActions({ issue }: { issue: IssueSummary }) {
             <input value={fixedIn} onChange={(e) => setFixedIn(e.target.value)} placeholder="v2"
               className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1" />
           </label>
+          {verifiedVersion && fixedIn === verifiedVersion && (
+            <p className="text-xs text-emerald-700">Pre-filled: replay verified the fix on agent {verifiedVersion}.</p>
+          )}
           <p className="text-xs text-slate-500">
             With a version, failures from older affected versions count as stragglers and won't reopen
             the issue; a failure from this or a new version reopens it as a regression.

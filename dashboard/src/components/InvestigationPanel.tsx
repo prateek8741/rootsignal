@@ -7,6 +7,7 @@ import { formatTime, shortId } from "../lib/format";
 import { Badge, Button, Card, ErrorBox, Loading, type Tone } from "./ui";
 
 const SECTIONS: { kind: string; title: string; hint: string }[] = [
+  { kind: "verified", title: "Verified", hint: "Confirmed by replay: the case reproduced the failure, then passed after the fix" },
   { kind: "observed", title: "Observed", hint: "Read directly off the traces and statistics" },
   { kind: "hypothesis", title: "Hypotheses", hint: "Possible causes. Not confirmed" },
   { kind: "alternative", title: "Alternative explanations", hint: "Competing explanations to rule out" },
@@ -34,6 +35,9 @@ function RefChip({ reference }: { reference: Record<string, unknown> }) {
   if ((type === "trace" || type === "finding") && trace) {
     return <Link to={`/traces/${trace}`} className={`${chip} text-sky-700 ring-sky-200 hover:bg-sky-50`}>{type} {shortId(trace)}</Link>;
   }
+  if (type === "case" && reference["case_id"]) {
+    return <Link to={`/cases/${String(reference["case_id"])}`} className={`${chip} text-emerald-700 ring-emerald-200 hover:bg-emerald-50`}>regression case</Link>;
+  }
   if (type === "stat") {
     return <span className={`${chip} text-slate-600 ring-slate-200`} title="A statistic computed from this environment's traces">stat: {String(reference["name"])}</span>;
   }
@@ -45,6 +49,7 @@ function ClaimItem({ claim }: { claim: Claim }) {
     <li className="text-sm">
       <div className="flex items-start gap-2">
         {claim.source === "llm" && <Badge tone="violet" title="Suggested by the AI model, checked against the evidence">AI</Badge>}
+        {claim.source === "replay" && <Badge tone="green" title="Set by a replay result, not by rules or the AI model">replay</Badge>}
         <span className="text-slate-800">{claim.statement}</span>
       </div>
       {claim.refs.length > 0 && (
@@ -97,8 +102,8 @@ function InvestigationView({ investigation }: { investigation: Investigation }) 
         </details>
       )}
       <p className="text-xs text-slate-500">
-        Nothing here is a confirmed root cause. A cause counts as verified only when a replay of
-        the failing trace passes after a fix.
+        Hypotheses aren't confirmed causes. Only replay can mark something verified: a regression case
+        must reproduce the failure on the unfixed code, then pass after the fix.
       </p>
     </div>
   );

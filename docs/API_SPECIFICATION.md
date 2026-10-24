@@ -138,7 +138,7 @@ See [INVESTIGATIONS.md](INVESTIGATIONS.md).
 **`Investigation` fields:**
 - **Run:** `id`, `issue_id`, `status` (`queued|running|completed|failed`), `requested_by`, `summary`, `evidence_trace_ids`, `error`, `created_at`, `started_at`, `completed_at`.
 - **AI step:** `use_llm`, `llm_status` (`not_requested|disabled|queued|budget_exhausted|failed|completed`), `llm_provider`, `llm_model`, `llm_input_tokens`, `llm_output_tokens`, `llm_error`.
-- **Claims:** `rejected_claims` (`[{claim, reason}]`), and `claims` (`[{kind, source, statement, refs}]`, ordered observed → hypothesis → alternative → missing_evidence → next_step).
+- **Claims:** `rejected_claims` (`[{claim, reason}]`), and `claims` (`[{kind, source, statement, refs}]`, ordered observed → hypothesis → alternative → missing_evidence → next_step, then any `verified` claims from replay, which cite `trace` and `case` (`{type: "case", case_id}`) references).
 
 ## 7. Regression cases
 
@@ -153,7 +153,12 @@ See [REGRESSION_CASES.md](REGRESSION_CASES.md).
 | `GET /v1/regression-cases/{id}/spec?version=` | read | The spec as a standalone document (`case_id`, `version`, and the spec), for replay and CI |
 | `PATCH /v1/regression-cases/{id} {name?, entrypoint?, input?, disabled_assertions?, note?}` | triage | New version; 422 `invalid_edit` for unknown assertion IDs or nothing to change |
 
-`CaseSummary` fields: `id`, `issue_id`, `source_trace_id`, `name`, `status`, `current_version`, `entrypoint`, `replayable_recorded`, `assertion_count`, `warning_count`, `created_by`, `created_at`, `updated_at`.
+`CaseSummary` fields: `id`, `issue_id`, `source_trace_id`, `name`, `status`, `current_version`, `entrypoint`, `replayable_recorded`, `assertion_count`, `warning_count`, `created_by`, `created_at`, `updated_at`, and three replay briefs (`{run_id, purpose, mode, verdict, trace_id, evaluated_at, agent_version}` or null):
+- `latest_replay`: the newest evaluated run;
+- `reproduced_by`: the newest run that reproduced the failure;
+- `verified_by`: the passing verify run. It is set **only while the case is `passing`**, so a case that fails again loses it.
+
+`agent_version` comes from the replay trace.
 
 ## 8. Replay runs
 
