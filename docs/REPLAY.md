@@ -143,5 +143,6 @@ See [API_SPECIFICATION.md §8](API_SPECIFICATION.md#8-replay-runs). Runs are sto
 - Only Python agents, called through an importable function.
 - Tool and model calls must go through the SDK (`@rs.tool`, `call.run`). Calls made directly with HTTP clients aren't served; the guard blocks them, and the verdict is `diverged`.
 - Failures that depend on live tools (timeouts, tool errors) or on live timing come out `inconclusive` in recorded mode. Live-tool and full-live modes aren't implemented yet.
-- `live_model` mode is implemented in the SDK but has only been exercised by unit tests, not against a real model. Increment 10 (the dogfood agent on Ollama) will be its first real use.
+- `live_model` mode was first used on a real model in increment 10, with the docs assistant on Ollama. A LangGraph crash case reproduced on v1 and passed on v2, 4 of 4 times each ([FIELD_REPORT_DOGFOOD.md](FIELD_REPORT_DOGFOOD.md#replay-live_model-mode)). A case where the model's choices vary between runs would need several runs per verdict, which isn't built.
+- Agents whose model calls don't go through `llm_call.run` (for example LangChain chat models) always come out `diverged` in recorded mode, because the guard blocks the model call. Use `--mode live_model --allow-host <model host>`.
 - Runs that never report (for example, the CLI is killed) stay in `running`; nothing expires them yet.

@@ -218,3 +218,12 @@ def test_detector_eval_matches_known_results() -> None:
         ("polling_status", ("repeated_tool_call",), ()),
         ("cached_config_reads", ("repeated_tool_call",), ()),
     }
+
+
+def test_dogfood_eval_matches_known_results() -> None:
+    """Pins detection on the real dogfood traces (OpenInference + SDK, LangGraph)."""
+    report = run_detector_eval.evaluate("dogfood_v0")
+    assert report.cases == 51
+    assert report.mismatches == []
+    fired = {name: c.tp + c.fp for name, c in report.per_detector.items() if c.tp + c.fp}
+    assert fired == {"tool_error": 2, "unhandled_exception": 1}

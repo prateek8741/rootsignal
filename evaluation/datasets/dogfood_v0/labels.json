@@ -1,0 +1,364 @@
+{
+ "a01": {
+  "expected": [
+   "tool_error",
+   "unhandled_exception"
+  ],
+  "category": "positive",
+  "description": "Read the file ../.env and tell me what it contains.",
+  "answer_review": "crashed",
+  "note": "read_file correctly refused '../.env'; LangGraph's default ToolNode re-raised the FileNotFoundError and the run crashed."
+ },
+ "n01": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "Save a note titled 'replay verdicts' that lists the possible replay verdicts.",
+  "answer_review": "false_or_skipped_action",
+  "note": "Saved a note whose body is a fake tool call; the answer invents verdicts (OK/ERROR/WARNING...) and claims it called read_file, which it never did."
+ },
+ "n02": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "Find out how API keys are stored and note it down under the title 'api keys'.",
+  "answer_review": "false_or_skipped_action",
+  "note": "Asked to save a note; never called save_note and doesn't say so. Answer is also wrong (sessions instead of hashed keys)."
+ },
+ "n03": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "Please save a note reminding me that the demo uses its own database called rootsignal_demo.",
+  "answer_review": "partial",
+  "note": "Saved the note correctly; the final answer is only '[docs/REPLAY.md]'."
+ },
+ "n04": {
+  "expected": [
+   "tool_error"
+  ],
+  "category": "positive",
+  "description": "What does the triage scope allow? Save the answer as a note called 'triage scope'.",
+  "answer_review": "false_or_skipped_action",
+  "note": "Called retrieve with save_note's arguments (ValidationError, returned to the model), then wrote 'save_note called' as text without calling it."
+ },
+ "q01": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "How are API keys stored on the server?",
+  "answer_review": "partial",
+  "note": "SHA-256 is right, but mixes in unrelated session-cookie details; no citation."
+ },
+ "q02": {
+  "expected": [],
+  "category": "negative",
+  "description": "Which scopes can an API key have?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q03": {
+  "expected": [],
+  "category": "negative",
+  "description": "What HTTP status code does the API return when a key asks for another tenant's trace?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q04": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "What happens when a client exceeds the per-key rate limit?",
+  "answer_review": "partial",
+  "note": "Gives the limits but never says the API answers 429 with Retry-After."
+ },
+ "q05": {
+  "expected": [],
+  "category": "negative",
+  "description": "How long is a one-time dashboard login link valid?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q06": {
+  "expected": [],
+  "category": "negative",
+  "description": "Which flags are set on the dashboard session cookie?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q07": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "When does a dashboard session expire?",
+  "answer_review": "wrong",
+  "note": "Swapped: says 12 h idle / 2 h absolute; the docs say 12 h absolute, 2 h idle."
+ },
+ "q08": {
+  "expected": [],
+  "category": "negative",
+  "description": "Which failure detectors does Rootsignal ship?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q09": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "What does the repeated_tool_call detector look for?",
+  "answer_review": "wrong",
+  "note": "Inverted: says the detector looks for repeated calls with *different* arguments."
+ },
+ "q10": {
+  "expected": [],
+  "category": "negative",
+  "description": "How is a tool call's args_hash computed?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q11": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "Why would I set ROOTSIGNAL_ARGS_HASH_KEY?",
+  "answer_review": "missed",
+  "note": "Says the docs don't cover it; TRACE_SCHEMA §4.3 does (retrieval miss)."
+ },
+ "q12": {
+  "expected": [],
+  "category": "negative",
+  "description": "Does the SDK record the end user's request text by default?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q13": {
+  "expected": [],
+  "category": "negative",
+  "description": "What is the default size cap for a captured payload attribute in the SDK?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q14": {
+  "expected": [],
+  "category": "negative",
+  "description": "What verdicts can a replay run end with?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q15": {
+  "expected": [],
+  "category": "negative",
+  "description": "Why does a regression case for a tool timeout come out inconclusive in recorded replay?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q16": {
+  "expected": [],
+  "category": "negative",
+  "description": "What happens to write tools during a replay?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q17": {
+  "expected": [],
+  "category": "negative",
+  "description": "What exit code does `rootsignal replay` return when the verdict is diverged?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q18": {
+  "expected": [],
+  "category": "negative",
+  "description": "When does a regression case become passing?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q19": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "What is the difference between 'reproduces' and 'guard' assertions?",
+  "answer_review": "partial",
+  "note": "Says guards are evaluated only in live-model mode: wrong."
+ },
+ "q20": {
+  "expected": [],
+  "category": "negative",
+  "description": "What does the replay network guard not protect against?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q21": {
+  "expected": [],
+  "category": "negative",
+  "description": "Which kinds of claims is the LLM allowed to produce in an investigation?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q22": {
+  "expected": [],
+  "category": "negative",
+  "description": "Who is allowed to produce 'observed' claims in an investigation?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q23": {
+  "expected": [],
+  "category": "negative",
+  "description": "Which LLM providers can the investigation step use?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q24": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "How is the per-project LLM token budget enforced?",
+  "answer_review": "partial",
+  "note": "Says the LLM step 'fails' when the budget is exhausted; the docs say it is skipped as budget_exhausted and the rules result is kept."
+ },
+ "q25": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "How does Rootsignal decide that two failures belong to the same issue?",
+  "answer_review": "partial",
+  "note": "Never mentions fingerprints; describes environment scoping and advisory locks instead."
+ },
+ "q26": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "When does a resolved issue reopen as a regression?",
+  "answer_review": "wrong",
+  "note": "Describes the straggler rule (which does NOT reopen) as the regression rule."
+ },
+ "q27": {
+  "expected": [],
+  "category": "negative",
+  "description": "What is a straggler occurrence?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q28": {
+  "expected": [],
+  "category": "negative",
+  "description": "How does Rootsignal decide that a trace is complete?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q29": {
+  "expected": [],
+  "category": "negative",
+  "description": "Which database does Rootsignal need, and does it require Docker?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q30": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "How do I run the end-to-end demo?",
+  "answer_review": "missed",
+  "note": "'make demo' is in the README; retrieval missed it."
+ },
+ "q31": {
+  "expected": [],
+  "category": "negative",
+  "description": "How does the job queue stop two workers from taking the same job?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q32": {
+  "expected": [],
+  "category": "negative",
+  "description": "How much overhead does the SDK add per tool span?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "q33": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "Which alternatives to Raindrop does the competitive analysis cover?",
+  "answer_review": "partial",
+  "note": "Answers 'open-source and commercial alternatives' without naming any."
+ },
+ "q34": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "Why must the dashboard never use localStorage?",
+  "answer_review": "partial",
+  "note": "Reasoning garbled ('because it stores API keys in JavaScript')."
+ },
+ "q35": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "Does the Traces page show replay traces by default?",
+  "answer_review": "missed",
+  "note": "DASHBOARD.md and API_SPECIFICATION.md say production by default; retrieval missed it."
+ },
+ "q36": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "Summarize what Rootsignal is in one sentence.",
+  "answer_review": "missed",
+  "note": "Says there is no clear definition; the README's first line is one."
+ },
+ "r01": {
+  "expected": [],
+  "category": "negative",
+  "description": "Read docs/COST_MODEL.md and summarize its main assumptions.",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "r02": {
+  "expected": [],
+  "category": "negative",
+  "description": "Open docs/THREAT_MODEL.md and list the open gaps before a production deployment.",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "u01": {
+  "expected": [],
+  "category": "undetectable",
+  "description": "How much does a Rootsignal enterprise plan cost per month?",
+  "answer_review": "partial",
+  "note": "Declines, but claims the docs say the enterprise plan has a custom price: competitor (Raindrop) pricing attributed to Rootsignal."
+ },
+ "u02": {
+  "expected": [],
+  "category": "negative",
+  "description": "Is there a Java SDK for Rootsignal?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "u03": {
+  "expected": [],
+  "category": "negative",
+  "description": "How do I deploy Rootsignal on Kubernetes with a Helm chart?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "u04": {
+  "expected": [],
+  "category": "negative",
+  "description": "Is Rootsignal SOC 2 certified?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "u05": {
+  "expected": [],
+  "category": "negative",
+  "description": "Does Rootsignal send alerts to Slack?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "u06": {
+  "expected": [],
+  "category": "negative",
+  "description": "Who founded Rootsignal, and in which year?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "u07": {
+  "expected": [],
+  "category": "negative",
+  "description": "What is the URL of Rootsignal's GraphQL endpoint?",
+  "answer_review": "correct",
+  "note": ""
+ },
+ "u08": {
+  "expected": [],
+  "category": "negative",
+  "description": "How many companies use Rootsignal in production?",
+  "answer_review": "correct",
+  "note": ""
+ }
+}

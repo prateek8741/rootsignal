@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import cached_property
 from typing import Any, Literal
@@ -34,6 +34,7 @@ class SpanView:
     call_index: int | None
     attributes: Mapping[str, Any] = field(default_factory=dict)
     events: tuple[Mapping[str, Any], ...] = ()
+    dialect: str = "rootsignal"
 
     @property
     def failed(self) -> bool:
@@ -55,9 +56,10 @@ class SpanView:
     @classmethod
     def from_mapping(cls, row: Mapping[str, Any]) -> SpanView:
         values: dict[str, Any] = {f: row.get(f) for f in _SPAN_FIELDS
-                                  if f not in ("attributes", "events")}
+                                  if f not in ("attributes", "events", "dialect")}
         return cls(**values, attributes=row.get("attributes") or {},
-                   events=tuple(row.get("events") or ()))
+                   events=tuple(row.get("events") or ()),
+                   dialect=row.get("dialect") or "rootsignal")
 
     @classmethod
     def from_normalized(cls, span: NormalizedSpan) -> SpanView:
@@ -67,6 +69,44 @@ class SpanView:
 _SPAN_FIELDS = tuple(SpanView.__dataclass_fields__)
 
 
+def shadowed_ids(spans: Iterable[SpanView]) -> set[str]:
+    """Third-party tool spans that duplicate one of our SDK's tool spans.
+
+    With OpenInference and ``@rs.tool`` on the same function, every call yields
+    two tool spans. The SDK span is kept (it knows the side effect and hashes the
+    raw arguments); the other is shadowed when an SDK span for the same tool
+    starts inside it. Parent links can't be used: OpenInference's LangChain
+    tracer doesn't make its spans current, so the SDK span isn't its child.
+    """
+    spans = list(spans)
+    ours = [s for s in spans if s.is_tool and s.dialect == "rootsignal"]
+    out: set[str] = set()
+    for span in spans:
+        if not span.is_tool or span.dialect == "rootsignal":
+            continue
+        end = span.ended_at or span.started_at
+        if any(r.tool_name == span.tool_name and span.started_at <= r.started_at <= end
+               for r in ours):
+            out.add(span.span_id)
+    return out
+
+
+def drop_shadowed(spans: list[SpanView]) -> list[SpanView]:
+    """Remove shadowed spans; their children move up to the shadowed span's parent."""
+    shadowed = shadowed_ids(spans)
+    if not shadowed:
+        return spans
+    parent_of = {s.span_id: s.parent_span_id for s in spans}
+
+    def lift(parent: str | None) -> str | None:
+        while parent in shadowed:
+            parent = parent_of[parent]
+        return parent
+
+    return [replace(s, parent_span_id=lift(s.parent_span_id)) for s in spans
+            if s.span_id not in shadowed]
+
+
 @dataclass(frozen=True)
 class TraceView:
     trace_id: str
@@ -74,7 +114,8 @@ class TraceView:
 
     @classmethod
     def build(cls, trace_id: str, spans: Iterable[SpanView]) -> TraceView:
-        ordered = sorted(spans, key=lambda s: (s.started_at, s.call_index or 0, s.span_id))
+        kept = drop_shadowed(list(spans))
+        ordered = sorted(kept, key=lambda s: (s.started_at, s.call_index or 0, s.span_id))
         return cls(trace_id, tuple(ordered))
 
     @cached_property

@@ -50,6 +50,7 @@ class Report:
     cases: int
     per_detector: dict[str, Counts]
     mismatches: list[dict[str, object]] = field(default_factory=list)
+    disclaimer: str = DISCLAIMER
 
 
 def fired_detectors(otlp_json: bytes) -> set[str]:
@@ -67,7 +68,10 @@ def evaluate(dataset: str) -> Report:
     directory = ROOT / "datasets" / dataset
     labels = json.loads((directory / "labels.json").read_text())
     counts = {name: Counts() for name in DETECTOR_NAMES}
-    report = Report(dataset, len(labels), counts)
+    # A dataset can state its own provenance and limits (disclaimer.txt).
+    note = directory / "disclaimer.txt"
+    report = Report(dataset, len(labels), counts,
+                    disclaimer=note.read_text().strip() if note.exists() else DISCLAIMER)
     for case_id, label in sorted(labels.items()):
         expected = set(label["expected"])
         unknown = expected - set(DETECTOR_NAMES)
@@ -114,7 +118,7 @@ def print_report(report: Report) -> None:
         for m in report.mismatches:
             print(f"  [{m['category']}] {m['case']}: FP={m['false_positives']} "
                   f"FN={m['false_negatives']} {m['note']}")
-    print(f"\nNote: {DISCLAIMER}")
+    print(f"\nNote: {report.disclaimer}")
 
 
 def main() -> int:
@@ -126,7 +130,6 @@ def main() -> int:
     print_report(report)
     if args.json:
         payload = asdict(report)
-        payload["disclaimer"] = DISCLAIMER
         args.json.write_text(json.dumps(payload, indent=2) + "\n")
     return 0
 

@@ -1,4 +1,4 @@
-.PHONY: setup demo migrate test test-sdk test-server test-dashboard lint typecheck check bench serve worker dashboard seed-demo measure-ingest eval-detectors
+.PHONY: setup demo migrate test test-sdk test-server test-examples test-dashboard lint typecheck check bench serve worker dashboard seed-demo measure-ingest eval-detectors
 
 setup:
 	./scripts/dev_setup.sh
@@ -9,13 +9,16 @@ demo:
 migrate:
 	cd server && uv run alembic upgrade head
 
-test: test-sdk test-server
+test: test-sdk test-server test-examples
 
 test-sdk:
 	uv run pytest sdk/python/tests -q
 
 test-server:
 	uv run pytest server/tests -q
+
+test-examples:
+	uv run pytest examples/tests -q
 
 lint:
 	uv run ruff check .

@@ -3,7 +3,16 @@ name = "rootsignal-examples"
 version = "0.1.0.dev0"
 description = "Example agents instrumented with Rootsignal (used by demos and replay tests)"
 requires-python = ">=3.10"
-dependencies = ["rootsignal"]
+dependencies = [
+    "rootsignal",
+    # docs_assistant (dogfood agent). Exact pins, each release ≥ 2 weeks old when chosen;
+    # licenses checked: LangGraph/LangChain/langchain-ollama/ollama MIT, OpenInference Apache-2.0.
+    "langgraph==1.2.14",
+    "langchain-core==1.6.9",
+    "langchain-ollama==1.1.0",
+    "ollama==0.6.3",
+    "openinference-instrumentation-langchain==0.1.79",
+]
 
 [build-system]
 requires = ["hatchling"]

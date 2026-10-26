@@ -67,7 +67,17 @@ Unknown detectors or parameters, wrong types and non-positive numbers are reject
 | token_budget_exceeded | 2 | 0 | 0 | 33 | 1.00 | 1.00 | 0.00 |
 | high_latency | 2 | 0 | 0 | 33 | 1.00 | 1.00 | 0.00 |
 
-**What these numbers are not.** The dataset is synthetic and was written by the same people who wrote the detectors, so near-perfect scores are expected by construction. They show that each rule does what its rubric says, and that regressions get caught: `test_detector_eval_matches_known_results` pins the exact mismatches. **They are not estimates of real-world precision or recall.** That needs labelled traces from real agents (increment 10, Phase 4).
+**What these numbers are not.** The dataset is synthetic and was written by the same people who wrote the detectors, so near-perfect scores are expected by construction. They show that each rule does what its rubric says, and that regressions get caught: `test_detector_eval_matches_known_results` pins the exact mismatches. **They are not estimates of real-world precision or recall.** That needs labelled traces from real agents: §3.1 is the first small set, and Phase 4 needs more.
+
+### 3.1 Real traces (dataset `dogfood_v0`)
+
+51 traces from the docs assistant (LangGraph + `llama3.1:8b`), recorded 2026-10-26: `uv run python evaluation/run_detector_eval.py --dataset dogfood_v0`.
+- The detectors fired 3 times on 2 traces (`tool_error` ×2, `unhandled_exception` ×1).
+- Against the labels: 3 true positives, 0 false positives, 0 false negatives. With only 3 positives that is no estimate of precision.
+- The informative number: **18 of the 20 traces that failed did so in ways no detector covers** (wrong, uncited or invented answers; claimed actions that never happened).
+- The labels were assigned by the assistant that wrote the detectors.
+
+See [FIELD_REPORT_DOGFOOD.md](FIELD_REPORT_DOGFOOD.md).
 
 What the evaluation caught during development:
 1. `unhandled_exception` reported an orphaned tool span as the run when the root span was lost (fixed: only true roots stand in for the run).
@@ -77,7 +87,7 @@ What the evaluation caught during development:
 ## 4. Known limitations
 
 - **Intentional repetition** (polling a job status, cheap cached reads) triggers `repeated_tool_call`. Both are in the dataset as expected false positives. Mitigations to evaluate: a per-tool allowlist, or ignoring calls whose results change.
-- **Semantic failures are invisible here.** "Agent claims success after a failed refund" yields only `tool_error`; the false claim needs a semantic signal (Phase 2).
+- **Semantic failures are invisible here.** "Agent claims success after a failed refund" yields only `tool_error`; the false claim needs a semantic signal (Phase 2). On real traces this was the dominant failure (§3.1). One sub-case looks deterministic: an answer that claims a tool call when the trace has no such span (2 of 51 dogfood traces). It's a candidate detector.
 - **Latency thresholds are static.** A baseline per agent and tool needs history (Phase 2).
 - **Model-call retries are inferred** from consecutive calls to the same model. Without an error, a retry looks like a normal step.
 - **Detector versions are all 1.** Bump a detector's version whenever its logic changes after release.

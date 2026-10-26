@@ -1,0 +1,56 @@
+{
+  "dataset": "dogfood_v0",
+  "cases": 51,
+  "per_detector": {
+    "unhandled_exception": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 50
+    },
+    "tool_error": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 49
+    },
+    "timeout": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "tn": 51
+    },
+    "repeated_tool_call": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "tn": 51
+    },
+    "excessive_retries": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "tn": 51
+    },
+    "step_limit_reached": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "tn": 51
+    },
+    "token_budget_exceeded": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "tn": 51
+    },
+    "high_latency": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "tn": 51
+    }
+  },
+  "mismatches": [],
+  "disclaimer": "Real traces from one run of the docs assistant (LangGraph + llama3.1:8b on Ollama) over a fixed question set, recorded 2026-10-26. Labels were assigned by the AI assistant that also wrote the detectors, by reading each trace's spans and final answer; they were not independently reviewed. One run of one agent: these numbers show where the detectors and labels disagree on real traffic, not production precision or recall."
+}

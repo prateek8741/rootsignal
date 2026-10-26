@@ -33,7 +33,7 @@ _SPANS = text(
     "SELECT s.span_id, s.parent_span_id, s.kind, s.name, s.status, s.status_message, "
     "s.error_type, s.started_at, s.ended_at, s.duration_ms, s.model, s.provider, "
     "s.input_tokens, s.output_tokens, s.tool_name, s.side_effect, s.args_hash, s.call_index, "
-    "s.repeat_index, s.attributes, s.events, "
+    "s.repeat_index, s.attributes, s.events, s.dialect, "
     "pi.body AS in_body, pi.content_type AS in_type, pi.truncated AS in_trunc, "
     "pi.redaction_state AS in_red, "
     "po.body AS out_body, po.content_type AS out_type, po.truncated AS out_trunc, "
@@ -72,6 +72,10 @@ def build_spec(conn: Connection, *, project_id: uuid.UUID, environment_id: uuid.
         raise CaseSourceError("trace not found, or it is not an occurrence of this issue")
     rows = list(conn.execute(_SPANS, {**scope, "t": trace_id}).mappings().all())
     view = TraceView.build(trace_id, (SpanView.from_mapping(dict(r)) for r in rows))
+    # Third-party duplicates of SDK tool spans would become extra fixtures (side effect
+    # "unknown"); keep exactly the spans detection sees.
+    kept = {s.span_id for s in view.spans}
+    rows = [r for r in rows if r["span_id"] in kept]
     config: DetectorConfig = load_config(conn, project_id)
     findings = conn.execute(text(
         "SELECT f.id, f.detector, f.finding_key, f.tool_name, f.facts FROM findings f "

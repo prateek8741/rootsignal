@@ -167,7 +167,11 @@ def test_invalid_spans_are_rejected_with_reasons() -> None:
 @pytest.mark.parametrize(("attributes", "dialect", "kind"), [
     ({"gen_ai.operation.name": "chat", "gen_ai.request.model": "m"}, "gen_ai", "llm"),
     ({"gen_ai.operation.name": "invoke_agent"}, "gen_ai", "agent"),
-    ({"openinference.span.kind": "LLM"}, "openinference", "other"),
+    ({"openinference.span.kind": "LLM"}, "openinference", "llm"),
+    ({"openinference.span.kind": "TOOL"}, "openinference", "tool"),
+    ({"openinference.span.kind": "CHAIN"}, "openinference", "chain"),
+    ({"openinference.span.kind": "AGENT"}, "openinference", "chain"),
+    ({"openinference.span.kind": "GUARDRAIL"}, "openinference", "other"),
     ({"traceloop.span.kind": "task"}, "openllmetry", "other"),
     ({"http.method": "GET"}, "unknown", "other"),
 ])

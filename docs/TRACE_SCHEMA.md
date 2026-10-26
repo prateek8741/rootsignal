@@ -1,6 +1,6 @@
 # Trace Schema
 
-Status: v0.1. SDK and tables since increment 1. Ingest normalisation (OTLP → tables, §5) since increment 2, tested for the `rootsignal` and `gen_ai` dialects. API rules are in [API_SPECIFICATION.md](API_SPECIFICATION.md).
+Status: v0.1. SDK and tables since increment 1. Ingest normalisation (OTLP → tables, §5) since increment 2, tested for the `rootsignal` and `gen_ai` dialects, and for `openinference` since increment 10 (on recorded LangGraph traces). API rules are in [API_SPECIFICATION.md](API_SPECIFICATION.md).
 
 Sources of truth: `sdk/python/src/rootsignal/_attributes.py` (wire attributes) and `server/src/rootsignal_server/storage/models.py` (tables, migration `0001`).
 
@@ -96,6 +96,27 @@ Span status is `ERROR` on an exception or `record_error()`, and left `UNSET` oth
 | `gen_ai.retrieval.query.text` | `P` |
 | `gen_ai.retrieval.documents` | `P`. List; `{id, score, content}` mappings recommended |
 
+### 3.7 Spans from OpenInference instrumentors
+
+Third-party instrumentors can export through the SDK's provider: `LangChainInstrumentor().instrument(tracer_provider=rs.tracer_provider())`. The adapter was built from traces recorded with `openinference-instrumentation-langchain` 0.1.79 on LangGraph 1.2 (`server/tests/fixtures/openinference/`, `evaluation/datasets/dogfood_v0/`).
+
+| OpenInference | Canonical |
+|---|---|
+| `openinference.span.kind` `LLM`, `EMBEDDING` / `TOOL` / `RETRIEVER` / `CHAIN`, `AGENT` | `llm` / `tool` / `retrieval` / `chain`; anything else → `other`. `AGENT` maps to `chain` because the LangChain instrumentor gives that label to any graph node *named* "agent" (one span per step), so it doesn't mark an agent run. Agent runs come from the SDK's `invoke_agent` span |
+| `llm.model_name`, `llm.provider` (falls back to `llm.system`) | `model`, `provider`. `llm.system` is the API family, and ChatOllama reports `openai` there |
+| `llm.token_count.prompt` / `.completion` | `input_tokens` / `output_tokens` |
+| `tool.name` | `tool_name`. `side_effect` is `unknown`: OpenInference doesn't know it |
+| `llm.input_messages.<i>.message.*` / `llm.output_messages.<i>.*` | Input / output payloads, as a JSON list of messages (`role`, `content`, `tool_calls` with `id`, `function.name`, `function.arguments`). The flattened attributes are removed |
+| `input.value` / `output.value` | Payloads for every other kind. For `llm` spans with messages, `input.value` repeats them in LangChain's serialised form and is dropped |
+| `retrieval.documents.<i>.document.*` | Output payload of `retrieval` spans |
+
+**Duplicate tool spans.** With OpenInference and `@rs.tool` on the same function, each call produces two tool spans. OpenInference's LangChain tracer doesn't make its span current, so the SDK span is *not* its child. A third-party tool span counts as **shadowed** when an SDK tool span with the same tool name starts within its interval.
+- Detection, regression-case fixtures and the trace's `tool_call_count` use only the SDK span, which knows the side effect and hashes the raw arguments.
+- The waterfall still shows both spans.
+- Model calls aren't deduplicated. Wrapping a model call in `rs.llm_call` while OpenInference also traces it counts the call (and its tokens) twice.
+
+**Redaction.** The SDK's `rootsignal.sdk.redaction = pattern` resource attribute applies only to the SDK's own spans. Payloads of other dialects on the same resource are redacted by the server under `redact_on_ingest = if_not_sdk`.
+
 ## 4. Capture policy, redaction and limits
 
 ### 4.1 What is captured
@@ -156,7 +177,7 @@ Defined in migration `0001`. Common rules:
 | `events` (JSONB) | Span events (exceptions) |
 | `dialect ∈ {rootsignal, gen_ai, openinference, openllmetry, unknown}` | Which adapter normalised the span |
 
-Kind mapping for other dialects (implemented in increment 2; OpenInference/OpenLLMetry adapters still need recorded fixtures, increment 10): spans that have only GenAI conventions map by `gen_ai.operation.name` (`chat`/`text_completion`/`generate_content` → `llm`, `execute_tool` → `tool`, `invoke_agent` → `agent`, `retrieval` → `retrieval`). OpenInference maps by `openinference.span.kind`. Anything unrecognised → `other`, keeping its raw attributes.
+Kind mapping for other dialects: spans that have only GenAI conventions map by `gen_ai.operation.name` (`chat`/`text_completion`/`generate_content` → `llm`, `execute_tool` → `tool`, `invoke_agent` → `agent`, `retrieval` → `retrieval`). OpenInference is in §3.7. OpenLLMetry spans are detected but have no adapter yet. Anything unrecognised → `other`, keeping its raw attributes.
 
 ### 5.3 `payloads`: PK `(project_id, sha256)`
 
