@@ -151,7 +151,15 @@ WITH agg AS (
            count(*) AS span_count,
            count(*) FILTER (WHERE status = 'error') AS error_count,
            count(*) FILTER (WHERE kind = 'llm') AS llm_call_count,
-           count(*) FILTER (WHERE kind IN ('tool', 'mcp')) AS tool_call_count,
+           -- A third-party tool span duplicating an SDK tool span counts once
+           -- (same rule as detection.model.shadowed_ids).
+           count(*) FILTER (WHERE kind IN ('tool', 'mcp') AND NOT (dialect <> 'rootsignal'
+               AND EXISTS (SELECT 1 FROM spans r WHERE r.project_id = spans.project_id
+                   AND r.trace_id = spans.trace_id AND r.dialect = 'rootsignal'
+                   AND r.kind IN ('tool', 'mcp') AND r.tool_name = spans.tool_name
+                   AND r.started_at BETWEEN spans.started_at
+                                        AND coalesce(spans.ended_at, spans.started_at))))
+               AS tool_call_count,
            coalesce(sum(input_tokens), 0) AS input_tokens,
            coalesce(sum(output_tokens), 0) AS output_tokens,
            sum(cost_usd) AS cost_usd,

@@ -66,6 +66,8 @@ Adversaries considered:
 | PII captured by default | User input off by default; payload and exception redaction in the SDK; server redaction if the SDK didn't | implemented (SDK and normalisation tests) |
 | Redaction misses PII | Pattern matching is best effort, and documented as such | **gap** (no ML/NER redaction; customers must decide what to capture) |
 | Low-entropy argument hashes reversible | Optional HMAC key for `args_hash` | implemented (opt-in) |
+| Third-party instrumentors (e.g. OpenInference) export through the SDK's provider, so their spans carry the SDK's "already redacted" resource claim although the SDK never redacted them | The SDK's claim applies only to `rootsignal`-dialect spans; other dialects get server redaction under `if_not_sdk` | implemented (`test_sdk_redaction_claim_does_not_cover_third_party_spans`); found by the dogfood run |
+| Tracebacks with local file paths (home directory, username) in third-party spans' status messages | None: pattern redaction doesn't cover file paths | **gap** (seen with OpenInference; see FIELD_REPORT_DOGFOOD.md) |
 
 ### 3.3 Dashboard authentication (inc 6)
 
@@ -102,7 +104,7 @@ Adversaries considered:
 
 | Threat | Mitigation | Status |
 |---|---|---|
-| Malicious or compromised dependency | Exact pins in `package.json`/lockfiles; `uv.lock`; small dependency set | partial; **gap:** no automated vulnerability scanning (Dependabot / `pip-audit` / `npm audit` in CI) |
+| Malicious or compromised dependency | Exact pins in `package.json`/lockfiles; `uv.lock`; small dependency set. The example agents' framework dependencies (LangGraph, LangChain, OpenInference) are pinned to releases at least 2 weeks old, with licenses checked; they're only needed by `examples/` | partial; **gap:** no automated vulnerability scanning (Dependabot / `pip-audit` / `npm audit` in CI) |
 | Secrets in the repo | `.env` git-ignored; secret scan before every commit (manual) | partial; **gap:** automated secret scanning in CI |
 | Provider API keys | Settings from the environment only (`SecretStr`), never logged | implemented |
 

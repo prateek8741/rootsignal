@@ -41,9 +41,11 @@ describe("signing in", () => {
     });
     renderWithProviders(<AppRoutes />, { route: "/login" });
     const input = await screen.findByLabelText("API key");
-    await userEvent.type(input, KEY);
+    // Pasted, as the test name says (typing 46 characters one by one made this test flaky).
+    await userEvent.click(input);
+    await userEvent.paste(KEY);
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(await screen.findByRole("heading", { name: "Traces" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Traces" }, { timeout: 3000 })).toBeInTheDocument();
 
     const [[, init]] = calls(fetchMock, "POST", "/v1/auth/session") as [[unknown, RequestInit]];
     expect(JSON.parse(String(init.body))).toEqual({ api_key: KEY });

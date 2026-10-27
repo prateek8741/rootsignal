@@ -19,7 +19,7 @@ logger = logging.getLogger("rootsignal.detection")
 _SPAN_SELECT = (
     "SELECT span_id, parent_span_id, kind, name, status, status_message, error_type, "
     "started_at, ended_at, duration_ms, model, input_tokens, output_tokens, tool_name, "
-    "side_effect, args_hash, call_index, attributes, events "
+    "side_effect, args_hash, call_index, attributes, events, dialect "
     "FROM spans WHERE project_id = :p AND trace_id = :t"
 )
 

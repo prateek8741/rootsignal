@@ -1,10 +1,17 @@
 """OTLP spans → canonical spans and payloads. Pure: no I/O, no database.
 
-Dialects handled here: ``rootsignal`` (our SDK) and ``gen_ai`` (spans that use
-only the OpenTelemetry GenAI conventions). OpenInference and OpenLLMetry
-spans are *detected* and stored with their attributes, but mapped to a kind
-only via ``gen_ai.operation.name``; dedicated adapters wait for recorded
-fixtures (roadmap increment 10).
+Dialects handled here:
+
+* ``rootsignal`` (our SDK);
+* ``gen_ai`` (spans that use only the OpenTelemetry GenAI conventions);
+* ``openinference`` (Arize OpenInference instrumentors). The adapter was built
+  from traces recorded with ``openinference-instrumentation-langchain`` 0.1.79
+  on LangGraph 1.2 (``server/tests/fixtures/openinference/``). Flattened
+  message attributes become the payload, ``input.value``/``output.value``
+  become payloads, ``llm.provider`` wins over ``llm.system``.
+
+OpenLLMetry spans are *detected* and stored with their attributes, but mapped
+to a kind only via ``gen_ai.operation.name``.
 """
 
 from __future__ import annotations
@@ -46,6 +53,11 @@ _GEN_AI_OPERATION_KINDS = {
     "execute_tool": "tool", "invoke_agent": "agent", "create_agent": "agent",
     "retrieval": "retrieval", "invoke_workflow": "chain",
 }
+# AGENT → chain: the LangChain instrumentor labels any graph node *named* "agent" as
+# AGENT (one per step), so it doesn't mark an agent run. Runs come from our SDK's
+# invoke_agent span or GenAI ``invoke_agent``.
+_OPENINFERENCE_KINDS = {"LLM": "llm", "EMBEDDING": "llm", "TOOL": "tool", "RETRIEVER": "retrieval",
+                        "CHAIN": "chain", "AGENT": "chain"}
 _STATUS = {OtlpStatus.STATUS_CODE_UNSET: "unset", OtlpStatus.STATUS_CODE_OK: "ok",
            OtlpStatus.STATUS_CODE_ERROR: "error"}
 _SIDE_EFFECTS = {"none", "read", "write", "unknown"}
@@ -210,10 +222,61 @@ def canonical_kind(dialect: str, attrs: Mapping[str, Any]) -> str:
         kind = attrs.get("rootsignal.span.kind")
         if kind in _ROOTSIGNAL_KINDS:
             return "mcp" if kind == "tool" and attrs.get("rootsignal.mcp.server") else str(kind)
+    if dialect == "openinference":
+        return _OPENINFERENCE_KINDS.get(str(attrs.get("openinference.span.kind")).upper(), "other")
     operation = attrs.get("gen_ai.operation.name")
     if isinstance(operation, str) and operation in _GEN_AI_OPERATION_KINDS:
         return _GEN_AI_OPERATION_KINDS[operation]
     return "other"
+
+
+def _unflatten(attrs: dict[str, Any], prefix: str) -> list[dict[str, Any]] | None:
+    """Pop OpenInference's flattened lists (``prefix.<i>.<path>``) into a list of dicts.
+
+    ``llm.input_messages.0.message.tool_calls.1.tool_call.function.name`` becomes
+    ``[{"tool_calls": [_, {"function.name": ...}]}]`` with the ``message.`` /
+    ``tool_call.`` / ``document.`` wrappers dropped.
+    """
+    items: dict[int, dict[str, Any]] = {}
+    for key in [k for k in attrs if k.startswith(prefix)]:
+        index, _, path = key[len(prefix):].partition(".")
+        if not index.isdigit() or not path:
+            continue
+        value = attrs.pop(key)
+        path = path.removeprefix("message.").removeprefix("document.")
+        item = items.setdefault(int(index), {})
+        if path.startswith(("tool_calls.", "contents.")):
+            field_name, _, rest = path.partition(".")
+            sub_index, _, sub_path = rest.partition(".")
+            if not sub_index.isdigit():
+                continue
+            sub_path = sub_path.removeprefix("tool_call.").removeprefix("message_content.")
+            item.setdefault(field_name, {}).setdefault(int(sub_index), {})[sub_path] = value
+        else:
+            item[path] = value
+    for item in items.values():
+        for field_name in ("tool_calls", "contents"):
+            if field_name in item:
+                item[field_name] = [item[field_name][i] for i in sorted(item[field_name])]
+    return [items[i] for i in sorted(items)] if items else None
+
+
+def _openinference_values(kind: str, attrs: dict[str, Any]) -> tuple[Any, Any]:
+    """(input, output) payload values for an OpenInference span; pops what it uses."""
+    inputs = _unflatten(attrs, "llm.input_messages.")
+    outputs = _unflatten(attrs, "llm.output_messages.")
+    documents = _unflatten(attrs, "retrieval.documents.")
+    raw_in, raw_out = attrs.pop("input.value", None), attrs.pop("output.value", None)
+    attrs.pop("input.mime_type", None)
+    attrs.pop("output.mime_type", None)
+    if kind == "llm":
+        # The messages carry the content; input.value repeats them in LangChain's
+        # serialised form, so it is only kept when no messages were sent.
+        return (inputs if inputs is not None else raw_in,
+                outputs if outputs is not None else raw_out)
+    if kind == "retrieval":
+        return raw_in, documents if documents is not None else raw_out
+    return raw_in, raw_out
 
 
 def _payload(value: Any, *, truncated_by_sdk: bool, redaction_state: str, apply_server: bool,
@@ -312,16 +375,27 @@ def normalize_span(span: OtlpSpan, *, resource: Mapping[str, Any], policy: Inges
 
     sdk_redaction = resource.get("rootsignal.sdk.redaction")
     redaction_state = {"pattern": "sdk", "off": "none"}.get(str(sdk_redaction), "unknown")
+    if dialect != "rootsignal" and redaction_state == "sdk":
+        # Third-party instrumentors can share our SDK's provider (and resource), but
+        # the SDK only redacts its own spans: these payloads were never redacted.
+        redaction_state = "unknown"
     apply_server = policy.redact_on_ingest == "always" or (
         policy.redact_on_ingest == "if_not_sdk" and redaction_state != "sdk")
 
     sdk_truncated = set(attrs.get("rootsignal.payload.truncated_fields") or [])
     payloads: list[NormalizedPayload | None] = [None, None]
-    for i, key in enumerate(_PAYLOAD_KEYS.get(kind, ())):
-        if key in attrs:
-            payloads[i] = _payload(attrs.pop(key), truncated_by_sdk=key in sdk_truncated,
-                                   redaction_state=redaction_state, apply_server=apply_server,
-                                   policy=policy)
+    if dialect == "openinference":
+        for i, value in enumerate(_openinference_values(kind, attrs)):
+            if value is not None:
+                payloads[i] = _payload(value, truncated_by_sdk=False,
+                                       redaction_state=redaction_state,
+                                       apply_server=apply_server, policy=policy)
+    else:
+        for i, key in enumerate(_PAYLOAD_KEYS.get(kind, ())):
+            if key in attrs:
+                payloads[i] = _payload(attrs.pop(key), truncated_by_sdk=key in sdk_truncated,
+                                       redaction_state=redaction_state,
+                                       apply_server=apply_server, policy=policy)
 
     events = [{"name": e.name, "time": (_time(e.time_unix_nano) or started_at).isoformat(),
                "attributes": attributes_to_dict(e.attributes)} for e in span.events]
@@ -331,15 +405,22 @@ def normalize_span(span: OtlpSpan, *, resource: Mapping[str, Any], policy: Inges
         events = _redact_strings(events, policy.redactor)
         status_message = policy.redactor.redact(status_message)[0] if status_message else None
 
-    model = _str(attrs.get("gen_ai.response.model")) or _str(attrs.get("gen_ai.request.model"))
-    provider = _str(attrs.get("gen_ai.provider.name")) or _str(attrs.get("gen_ai.system"))
+    model = (_str(attrs.get("gen_ai.response.model")) or _str(attrs.get("gen_ai.request.model"))
+             or _str(attrs.get("llm.model_name")))
+    # OpenInference: llm.provider is the hosting provider; llm.system is the API family
+    # and is wrong for some integrations (ChatOllama reports "openai").
+    provider = (_str(attrs.get("gen_ai.provider.name")) or _str(attrs.get("gen_ai.system"))
+                or _str(attrs.get("llm.provider")) or _str(attrs.get("llm.system")))
     input_tokens = _int(attrs.get("gen_ai.usage.input_tokens",
-                                  attrs.get("gen_ai.usage.prompt_tokens")))
+                                  attrs.get("gen_ai.usage.prompt_tokens",
+                                            attrs.get("llm.token_count.prompt"))))
     output_tokens = _int(attrs.get("gen_ai.usage.output_tokens",
-                                   attrs.get("gen_ai.usage.completion_tokens")))
+                                   attrs.get("gen_ai.usage.completion_tokens",
+                                             attrs.get("llm.token_count.completion"))))
     side_effect = attrs.get("rootsignal.tool.side_effect")
     is_tool = kind in ("tool", "mcp")
-    tool_name = _str(attrs.get("gen_ai.tool.name")) if is_tool else None
+    tool_name = (_str(attrs.get("gen_ai.tool.name")) or _str(attrs.get("tool.name"))
+                 if is_tool else None)
     args_hash = _str(attrs.get("rootsignal.tool.args_hash"))
     if is_tool and args_hash is None and payloads[0] is not None:
         args_hash = derive_args_hash(tool_name or span.name, payloads[0])

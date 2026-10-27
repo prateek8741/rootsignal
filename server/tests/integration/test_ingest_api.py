@@ -307,3 +307,20 @@ def test_cli_creates_tenant_and_key_with_audit_trail(
         stored = conn.execute(text("SELECT key_hash FROM api_keys")).scalar_one()
     assert actions == ["tenant.ensure", "api_key.create", "api_key.revoke"]
     assert key not in stored  # only the hash is persisted
+
+
+def test_openinference_trace_rolls_up_without_double_counting_tools(harness: Harness) -> None:
+    from pathlib import Path
+
+    from rootsignal_server.ingest.otlp import JSON, decode_request
+
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "openinference"
+    request = decode_request((fixture / "langgraph_retrieve.json").read_bytes(), JSON)
+    key = harness.key(harness.tenant(), "ingest", "read")
+    assert harness.post(request, key).status_code == 200
+    trace_id = request.resource_spans[0].scope_spans[0].spans[0].trace_id.hex()
+    trace = harness.get(f"/v1/traces/{trace_id}", key).json()["trace"]
+    assert trace["agent_name"] == "docs-assistant"
+    assert trace["llm_call_count"] == 2
+    assert trace["tool_call_count"] == 1  # one call, two spans (OpenInference + SDK)
+    assert trace["input_tokens"] > 0 and trace["output_tokens"] > 0

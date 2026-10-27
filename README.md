@@ -2,7 +2,7 @@
 
 An AI agent reliability platform: **observe → detect → investigate → reproduce → fix → verify**. Working name; not trademark-checked.
 
-> **Status: Phase 1, increment 9 of 10.** SDK → authenticated OTLP ingest → worker → 8 deterministic detectors → issues with regression detection → evidence-backed investigations → regression cases built from failing runs → **replay** of a case against your code, before and after a fix → **fix verified by replay** on the issue → React dashboard with cookie-session sign-in. Next: a dogfood agent on a local model. See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
+> **Status: Phase 1 complete (10 of 10 increments).** SDK → authenticated OTLP ingest → worker → 8 deterministic detectors → issues with regression detection → evidence-backed investigations → regression cases built from failing runs → **replay** of a case against your code, before and after a fix → **fix verified by replay** on the issue → React dashboard with cookie-session sign-in. Dogfooded on a real LangGraph agent: [field report](docs/FIELD_REPORT_DOGFOOD.md). See [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md).
 
 ## Layout
 
@@ -10,7 +10,7 @@ An AI agent reliability platform: **observe → detect → investigate → repro
 sdk/python/      pip package `rootsignal`: OpenTelemetry-based tracing SDK
 server/          pip package `rootsignal_server`: ingest + read API, worker, detectors, admin CLI, migrations
 dashboard/       React + TypeScript dashboard (Vite)
-examples/        example agents (a support agent with a seeded bug and its fix, used by replay tests)
+examples/        example agents: a scripted support agent with a seeded bug and its fix, and a LangGraph docs assistant on local Ollama
 evaluation/      labelled datasets and the detector evaluation script
 scripts/         dev setup (no containers), end-to-end demo, SDK overhead benchmark, storage/throughput measurement
 docs/            competitive analysis, design, schema, roadmap
@@ -99,6 +99,6 @@ Details: [docs/TRACE_SCHEMA.md](docs/TRACE_SCHEMA.md).
 
 ## Documents
 
-[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Detectors](docs/DETECTORS.md) · [Issues](docs/ISSUES.md) · [Dashboard](docs/DASHBOARD.md) · [Investigations](docs/INVESTIGATIONS.md) · [Regression cases](docs/REGRESSION_CASES.md) · [Replay](docs/REPLAY.md) · [Threat model](docs/THREAT_MODEL.md) · [Cost model](docs/COST_MODEL.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
+[Competitive analysis](docs/COMPETITIVE_ANALYSIS.md) · [High-level design](docs/HIGH_LEVEL_DESIGN.md) · [Trace schema](docs/TRACE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Detectors](docs/DETECTORS.md) · [Issues](docs/ISSUES.md) · [Dashboard](docs/DASHBOARD.md) · [Investigations](docs/INVESTIGATIONS.md) · [Regression cases](docs/REGRESSION_CASES.md) · [Replay](docs/REPLAY.md) · [Threat model](docs/THREAT_MODEL.md) · [Field report](docs/FIELD_REPORT_DOGFOOD.md) · [Cost model](docs/COST_MODEL.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
 
 License: not yet chosen.
